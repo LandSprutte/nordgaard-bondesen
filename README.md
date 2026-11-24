@@ -49,3 +49,26 @@ pnpm dev
 - `packages/db/src/csv/normalize-key.ts`: turns the "Tekst" column into a key
   (`Debitkort DK COMPASS GROUP D` → `COMPASS GROUP D`).
 - Tests: `pnpm test`.
+
+## Production
+
+The app reads `DATABASE_URL` (plus `ADMIN_USERNAME` and `ADMIN_PASSWORD`) from the
+environment when it starts; nothing is baked into the image, and no `.env` file is used.
+
+```bash
+docker build -t saifnd .
+docker run -p 3000:3000 \
+  -e DATABASE_URL="postgresql://user:pass@host:5432/db?sslmode=require" \
+  -e ADMIN_USERNAME=admin -e ADMIN_PASSWORD=... saifnd
+```
+
+On start the container runs `prisma migrate deploy` against that database, then serves on
+port 3000. To try the image against the local database: `docker compose --profile app up --build`
+(set `APP_PORT` to use another host port).
+
+### Coolify
+
+New Application from this repo → Build Pack **Dockerfile**, Ports Exposes **3000**, Domain
+`https://your.domain`, and the three variables above (`DATABASE_URL` as the internal URL of a
+Coolify PostgreSQL database). Coolify's proxy handles HTTPS; the image's `HEALTHCHECK` tells it
+when a deploy is up.

@@ -11,5 +11,20 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
 
+  # The production image against the database above. Not started by
+  # `pnpm db:up`; run it with `docker compose --profile app up --build`.
+  # Elsewhere, give the image your own DATABASE_URL instead.
+  app:
+    profiles: [app]
+    build: .
+    restart: unless-stopped
+    depends_on: [db]
+    environment:
+      DATABASE_URL: postgresql://budget:budget@db:5432/budget
+      ADMIN_USERNAME: ${ADMIN_USERNAME:?Set ADMIN_USERNAME in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
 volumes:
   db-data:

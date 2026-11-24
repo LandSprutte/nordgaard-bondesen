@@ -6,7 +6,7 @@ function createClient() {
   const connectionString = process.env.DATABASE_URL
   if (!connectionString) {
     throw new Error(
-      "DATABASE_URL is not set. Copy .env.example to .env in the repo root."
+      "DATABASE_URL is not set. In development, copy .env.example to .env in the repo root; in production, set it in the environment."
     )
   }
   return new PrismaClient({ adapter: new PrismaPg({ connectionString }) })
