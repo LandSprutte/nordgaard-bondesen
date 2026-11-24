@@ -8,59 +8,491 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from "./routes/__root"
-import { Route as IndexRouteImport } from "./routes/index"
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as DashboardRouteImport } from './routes/_dashboard'
+import { Route as DashboardIndexRouteImport } from './routes/_dashboard/index'
+import { Route as DashboardBudgetRouteImport } from './routes/_dashboard/budget'
+import { Route as DashboardCalendarRouteImport } from './routes/_dashboard/calendar'
+import { Route as DashboardChoresRouteImport } from './routes/_dashboard/chores'
+import { Route as DashboardSettingsRouteImport } from './routes/_dashboard/settings'
+import { Route as DashboardBudgetIndexRouteImport } from './routes/_dashboard/budget/index'
+import { Route as DashboardBudgetExpensesRouteImport } from './routes/_dashboard/budget/expenses'
+import { Route as DashboardBudgetImportRouteImport } from './routes/_dashboard/budget/import'
+import { Route as DashboardBudgetIncomeRouteImport } from './routes/_dashboard/budget/income'
+import { Route as DashboardBudgetSpendingRouteImport } from './routes/_dashboard/budget/spending'
+import { Route as DashboardChoresIndexRouteImport } from './routes/_dashboard/chores/index'
+import { Route as DashboardChoresLogRouteImport } from './routes/_dashboard/chores/log'
+import { Route as DashboardChoresPlanRouteImport } from './routes/_dashboard/chores/plan'
+import { Route as DashboardChoresTreasureRouteImport } from './routes/_dashboard/chores/treasure'
+import { Route as DashboardSettingsIndexRouteImport } from './routes/_dashboard/settings/index'
+import { Route as DashboardSettingsBudgetRouteImport } from './routes/_dashboard/settings/budget'
+import { Route as DashboardSettingsChoresRouteImport } from './routes/_dashboard/settings/chores'
+import { Route as DashboardSettingsFamilyRouteImport } from './routes/_dashboard/settings/family'
+import { Route as DashboardSettingsTreasuresRouteImport } from './routes/_dashboard/settings/treasures'
 
-const IndexRoute = IndexRouteImport.update({
-  id: "/",
-  path: "/",
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/_dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardBudgetRoute = DashboardBudgetRouteImport.update({
+  id: '/budget',
+  path: '/budget',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardCalendarRoute = DashboardCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardChoresRoute = DashboardChoresRouteImport.update({
+  id: '/chores',
+  path: '/chores',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardBudgetIndexRoute = DashboardBudgetIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardBudgetRoute,
+} as any)
+const DashboardBudgetExpensesRoute = DashboardBudgetExpensesRouteImport.update({
+  id: '/expenses',
+  path: '/expenses',
+  getParentRoute: () => DashboardBudgetRoute,
+} as any)
+const DashboardBudgetImportRoute = DashboardBudgetImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => DashboardBudgetRoute,
+} as any)
+const DashboardBudgetIncomeRoute = DashboardBudgetIncomeRouteImport.update({
+  id: '/income',
+  path: '/income',
+  getParentRoute: () => DashboardBudgetRoute,
+} as any)
+const DashboardBudgetSpendingRoute = DashboardBudgetSpendingRouteImport.update({
+  id: '/spending',
+  path: '/spending',
+  getParentRoute: () => DashboardBudgetRoute,
+} as any)
+const DashboardChoresIndexRoute = DashboardChoresIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardChoresRoute,
+} as any)
+const DashboardChoresLogRoute = DashboardChoresLogRouteImport.update({
+  id: '/log',
+  path: '/log',
+  getParentRoute: () => DashboardChoresRoute,
+} as any)
+const DashboardChoresPlanRoute = DashboardChoresPlanRouteImport.update({
+  id: '/plan',
+  path: '/plan',
+  getParentRoute: () => DashboardChoresRoute,
+} as any)
+const DashboardChoresTreasureRoute = DashboardChoresTreasureRouteImport.update({
+  id: '/treasure',
+  path: '/treasure',
+  getParentRoute: () => DashboardChoresRoute,
+} as any)
+const DashboardSettingsIndexRoute = DashboardSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardSettingsRoute,
+} as any)
+const DashboardSettingsBudgetRoute = DashboardSettingsBudgetRouteImport.update({
+  id: '/budget',
+  path: '/budget',
+  getParentRoute: () => DashboardSettingsRoute,
+} as any)
+const DashboardSettingsChoresRoute = DashboardSettingsChoresRouteImport.update({
+  id: '/chores',
+  path: '/chores',
+  getParentRoute: () => DashboardSettingsRoute,
+} as any)
+const DashboardSettingsFamilyRoute = DashboardSettingsFamilyRouteImport.update({
+  id: '/family',
+  path: '/family',
+  getParentRoute: () => DashboardSettingsRoute,
+} as any)
+const DashboardSettingsTreasuresRoute =
+  DashboardSettingsTreasuresRouteImport.update({
+    id: '/treasures',
+    path: '/treasures',
+    getParentRoute: () => DashboardSettingsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  "/": typeof IndexRoute
+  '/': typeof DashboardIndexRoute
+  '/budget': typeof DashboardBudgetRouteWithChildren
+  '/calendar': typeof DashboardCalendarRoute
+  '/chores': typeof DashboardChoresRouteWithChildren
+  '/settings': typeof DashboardSettingsRouteWithChildren
+  '/budget/expenses': typeof DashboardBudgetExpensesRoute
+  '/budget/import': typeof DashboardBudgetImportRoute
+  '/budget/income': typeof DashboardBudgetIncomeRoute
+  '/budget/spending': typeof DashboardBudgetSpendingRoute
+  '/chores/log': typeof DashboardChoresLogRoute
+  '/chores/plan': typeof DashboardChoresPlanRoute
+  '/chores/treasure': typeof DashboardChoresTreasureRoute
+  '/settings/budget': typeof DashboardSettingsBudgetRoute
+  '/settings/chores': typeof DashboardSettingsChoresRoute
+  '/settings/family': typeof DashboardSettingsFamilyRoute
+  '/settings/treasures': typeof DashboardSettingsTreasuresRoute
+  '/budget/': typeof DashboardBudgetIndexRoute
+  '/chores/': typeof DashboardChoresIndexRoute
+  '/settings/': typeof DashboardSettingsIndexRoute
 }
 export interface FileRoutesByTo {
-  "/": typeof IndexRoute
+  '/calendar': typeof DashboardCalendarRoute
+  '/': typeof DashboardIndexRoute
+  '/budget/expenses': typeof DashboardBudgetExpensesRoute
+  '/budget/import': typeof DashboardBudgetImportRoute
+  '/budget/income': typeof DashboardBudgetIncomeRoute
+  '/budget/spending': typeof DashboardBudgetSpendingRoute
+  '/chores/log': typeof DashboardChoresLogRoute
+  '/chores/plan': typeof DashboardChoresPlanRoute
+  '/chores/treasure': typeof DashboardChoresTreasureRoute
+  '/settings/budget': typeof DashboardSettingsBudgetRoute
+  '/settings/chores': typeof DashboardSettingsChoresRoute
+  '/settings/family': typeof DashboardSettingsFamilyRoute
+  '/settings/treasures': typeof DashboardSettingsTreasuresRoute
+  '/budget': typeof DashboardBudgetIndexRoute
+  '/chores': typeof DashboardChoresIndexRoute
+  '/settings': typeof DashboardSettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  "/": typeof IndexRoute
+  '/_dashboard': typeof DashboardRouteWithChildren
+  '/_dashboard/budget': typeof DashboardBudgetRouteWithChildren
+  '/_dashboard/calendar': typeof DashboardCalendarRoute
+  '/_dashboard/chores': typeof DashboardChoresRouteWithChildren
+  '/_dashboard/settings': typeof DashboardSettingsRouteWithChildren
+  '/_dashboard/': typeof DashboardIndexRoute
+  '/_dashboard/budget/expenses': typeof DashboardBudgetExpensesRoute
+  '/_dashboard/budget/import': typeof DashboardBudgetImportRoute
+  '/_dashboard/budget/income': typeof DashboardBudgetIncomeRoute
+  '/_dashboard/budget/spending': typeof DashboardBudgetSpendingRoute
+  '/_dashboard/chores/log': typeof DashboardChoresLogRoute
+  '/_dashboard/chores/plan': typeof DashboardChoresPlanRoute
+  '/_dashboard/chores/treasure': typeof DashboardChoresTreasureRoute
+  '/_dashboard/settings/budget': typeof DashboardSettingsBudgetRoute
+  '/_dashboard/settings/chores': typeof DashboardSettingsChoresRoute
+  '/_dashboard/settings/family': typeof DashboardSettingsFamilyRoute
+  '/_dashboard/settings/treasures': typeof DashboardSettingsTreasuresRoute
+  '/_dashboard/budget/': typeof DashboardBudgetIndexRoute
+  '/_dashboard/chores/': typeof DashboardChoresIndexRoute
+  '/_dashboard/settings/': typeof DashboardSettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: "/"
+  fullPaths:
+    | '/'
+    | '/budget'
+    | '/calendar'
+    | '/chores'
+    | '/settings'
+    | '/budget/expenses'
+    | '/budget/import'
+    | '/budget/income'
+    | '/budget/spending'
+    | '/chores/log'
+    | '/chores/plan'
+    | '/chores/treasure'
+    | '/settings/budget'
+    | '/settings/chores'
+    | '/settings/family'
+    | '/settings/treasures'
+    | '/budget/'
+    | '/chores/'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to: "/"
-  id: "__root__" | "/"
+  to:
+    | '/calendar'
+    | '/'
+    | '/budget/expenses'
+    | '/budget/import'
+    | '/budget/income'
+    | '/budget/spending'
+    | '/chores/log'
+    | '/chores/plan'
+    | '/chores/treasure'
+    | '/settings/budget'
+    | '/settings/chores'
+    | '/settings/family'
+    | '/settings/treasures'
+    | '/budget'
+    | '/chores'
+    | '/settings'
+  id:
+    | '__root__'
+    | '/_dashboard'
+    | '/_dashboard/budget'
+    | '/_dashboard/calendar'
+    | '/_dashboard/chores'
+    | '/_dashboard/settings'
+    | '/_dashboard/'
+    | '/_dashboard/budget/expenses'
+    | '/_dashboard/budget/import'
+    | '/_dashboard/budget/income'
+    | '/_dashboard/budget/spending'
+    | '/_dashboard/chores/log'
+    | '/_dashboard/chores/plan'
+    | '/_dashboard/chores/treasure'
+    | '/_dashboard/settings/budget'
+    | '/_dashboard/settings/chores'
+    | '/_dashboard/settings/family'
+    | '/_dashboard/settings/treasures'
+    | '/_dashboard/budget/'
+    | '/_dashboard/chores/'
+    | '/_dashboard/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
 }
 
-declare module "@tanstack/react-router" {
+declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    "/": {
-      id: "/"
-      path: "/"
-      fullPath: "/"
-      preLoaderRoute: typeof IndexRouteImport
+    '/_dashboard': {
+      id: '/_dashboard'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_dashboard/': {
+      id: '/_dashboard/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/budget': {
+      id: '/_dashboard/budget'
+      path: '/budget'
+      fullPath: '/budget'
+      preLoaderRoute: typeof DashboardBudgetRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/calendar': {
+      id: '/_dashboard/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof DashboardCalendarRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/chores': {
+      id: '/_dashboard/chores'
+      path: '/chores'
+      fullPath: '/chores'
+      preLoaderRoute: typeof DashboardChoresRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/settings': {
+      id: '/_dashboard/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof DashboardSettingsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/budget/': {
+      id: '/_dashboard/budget/'
+      path: '/'
+      fullPath: '/budget/'
+      preLoaderRoute: typeof DashboardBudgetIndexRouteImport
+      parentRoute: typeof DashboardBudgetRoute
+    }
+    '/_dashboard/budget/expenses': {
+      id: '/_dashboard/budget/expenses'
+      path: '/expenses'
+      fullPath: '/budget/expenses'
+      preLoaderRoute: typeof DashboardBudgetExpensesRouteImport
+      parentRoute: typeof DashboardBudgetRoute
+    }
+    '/_dashboard/budget/import': {
+      id: '/_dashboard/budget/import'
+      path: '/import'
+      fullPath: '/budget/import'
+      preLoaderRoute: typeof DashboardBudgetImportRouteImport
+      parentRoute: typeof DashboardBudgetRoute
+    }
+    '/_dashboard/budget/income': {
+      id: '/_dashboard/budget/income'
+      path: '/income'
+      fullPath: '/budget/income'
+      preLoaderRoute: typeof DashboardBudgetIncomeRouteImport
+      parentRoute: typeof DashboardBudgetRoute
+    }
+    '/_dashboard/budget/spending': {
+      id: '/_dashboard/budget/spending'
+      path: '/spending'
+      fullPath: '/budget/spending'
+      preLoaderRoute: typeof DashboardBudgetSpendingRouteImport
+      parentRoute: typeof DashboardBudgetRoute
+    }
+    '/_dashboard/chores/': {
+      id: '/_dashboard/chores/'
+      path: '/'
+      fullPath: '/chores/'
+      preLoaderRoute: typeof DashboardChoresIndexRouteImport
+      parentRoute: typeof DashboardChoresRoute
+    }
+    '/_dashboard/chores/log': {
+      id: '/_dashboard/chores/log'
+      path: '/log'
+      fullPath: '/chores/log'
+      preLoaderRoute: typeof DashboardChoresLogRouteImport
+      parentRoute: typeof DashboardChoresRoute
+    }
+    '/_dashboard/chores/plan': {
+      id: '/_dashboard/chores/plan'
+      path: '/plan'
+      fullPath: '/chores/plan'
+      preLoaderRoute: typeof DashboardChoresPlanRouteImport
+      parentRoute: typeof DashboardChoresRoute
+    }
+    '/_dashboard/chores/treasure': {
+      id: '/_dashboard/chores/treasure'
+      path: '/treasure'
+      fullPath: '/chores/treasure'
+      preLoaderRoute: typeof DashboardChoresTreasureRouteImport
+      parentRoute: typeof DashboardChoresRoute
+    }
+    '/_dashboard/settings/': {
+      id: '/_dashboard/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof DashboardSettingsIndexRouteImport
+      parentRoute: typeof DashboardSettingsRoute
+    }
+    '/_dashboard/settings/budget': {
+      id: '/_dashboard/settings/budget'
+      path: '/budget'
+      fullPath: '/settings/budget'
+      preLoaderRoute: typeof DashboardSettingsBudgetRouteImport
+      parentRoute: typeof DashboardSettingsRoute
+    }
+    '/_dashboard/settings/chores': {
+      id: '/_dashboard/settings/chores'
+      path: '/chores'
+      fullPath: '/settings/chores'
+      preLoaderRoute: typeof DashboardSettingsChoresRouteImport
+      parentRoute: typeof DashboardSettingsRoute
+    }
+    '/_dashboard/settings/family': {
+      id: '/_dashboard/settings/family'
+      path: '/family'
+      fullPath: '/settings/family'
+      preLoaderRoute: typeof DashboardSettingsFamilyRouteImport
+      parentRoute: typeof DashboardSettingsRoute
+    }
+    '/_dashboard/settings/treasures': {
+      id: '/_dashboard/settings/treasures'
+      path: '/treasures'
+      fullPath: '/settings/treasures'
+      preLoaderRoute: typeof DashboardSettingsTreasuresRouteImport
+      parentRoute: typeof DashboardSettingsRoute
     }
   }
 }
 
+interface DashboardBudgetRouteChildren {
+  DashboardBudgetExpensesRoute: typeof DashboardBudgetExpensesRoute
+  DashboardBudgetImportRoute: typeof DashboardBudgetImportRoute
+  DashboardBudgetIncomeRoute: typeof DashboardBudgetIncomeRoute
+  DashboardBudgetSpendingRoute: typeof DashboardBudgetSpendingRoute
+  DashboardBudgetIndexRoute: typeof DashboardBudgetIndexRoute
+}
+
+const DashboardBudgetRouteChildren: DashboardBudgetRouteChildren = {
+  DashboardBudgetExpensesRoute: DashboardBudgetExpensesRoute,
+  DashboardBudgetImportRoute: DashboardBudgetImportRoute,
+  DashboardBudgetIncomeRoute: DashboardBudgetIncomeRoute,
+  DashboardBudgetSpendingRoute: DashboardBudgetSpendingRoute,
+  DashboardBudgetIndexRoute: DashboardBudgetIndexRoute,
+}
+
+const DashboardBudgetRouteWithChildren = DashboardBudgetRoute._addFileChildren(
+  DashboardBudgetRouteChildren,
+)
+
+interface DashboardChoresRouteChildren {
+  DashboardChoresLogRoute: typeof DashboardChoresLogRoute
+  DashboardChoresPlanRoute: typeof DashboardChoresPlanRoute
+  DashboardChoresTreasureRoute: typeof DashboardChoresTreasureRoute
+  DashboardChoresIndexRoute: typeof DashboardChoresIndexRoute
+}
+
+const DashboardChoresRouteChildren: DashboardChoresRouteChildren = {
+  DashboardChoresLogRoute: DashboardChoresLogRoute,
+  DashboardChoresPlanRoute: DashboardChoresPlanRoute,
+  DashboardChoresTreasureRoute: DashboardChoresTreasureRoute,
+  DashboardChoresIndexRoute: DashboardChoresIndexRoute,
+}
+
+const DashboardChoresRouteWithChildren = DashboardChoresRoute._addFileChildren(
+  DashboardChoresRouteChildren,
+)
+
+interface DashboardSettingsRouteChildren {
+  DashboardSettingsBudgetRoute: typeof DashboardSettingsBudgetRoute
+  DashboardSettingsChoresRoute: typeof DashboardSettingsChoresRoute
+  DashboardSettingsFamilyRoute: typeof DashboardSettingsFamilyRoute
+  DashboardSettingsTreasuresRoute: typeof DashboardSettingsTreasuresRoute
+  DashboardSettingsIndexRoute: typeof DashboardSettingsIndexRoute
+}
+
+const DashboardSettingsRouteChildren: DashboardSettingsRouteChildren = {
+  DashboardSettingsBudgetRoute: DashboardSettingsBudgetRoute,
+  DashboardSettingsChoresRoute: DashboardSettingsChoresRoute,
+  DashboardSettingsFamilyRoute: DashboardSettingsFamilyRoute,
+  DashboardSettingsTreasuresRoute: DashboardSettingsTreasuresRoute,
+  DashboardSettingsIndexRoute: DashboardSettingsIndexRoute,
+}
+
+const DashboardSettingsRouteWithChildren =
+  DashboardSettingsRoute._addFileChildren(DashboardSettingsRouteChildren)
+
+interface DashboardRouteChildren {
+  DashboardBudgetRoute: typeof DashboardBudgetRouteWithChildren
+  DashboardCalendarRoute: typeof DashboardCalendarRoute
+  DashboardChoresRoute: typeof DashboardChoresRouteWithChildren
+  DashboardSettingsRoute: typeof DashboardSettingsRouteWithChildren
+  DashboardIndexRoute: typeof DashboardIndexRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardBudgetRoute: DashboardBudgetRouteWithChildren,
+  DashboardCalendarRoute: DashboardCalendarRoute,
+  DashboardChoresRoute: DashboardChoresRouteWithChildren,
+  DashboardSettingsRoute: DashboardSettingsRouteWithChildren,
+  DashboardIndexRoute: DashboardIndexRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  DashboardRoute: DashboardRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from "./router.tsx"
-import type { createStart } from "@tanstack/react-start"
-declare module "@tanstack/react-start" {
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>

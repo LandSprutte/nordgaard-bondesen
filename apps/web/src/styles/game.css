@@ -1,0 +1,186 @@
+/*
+ * Animations for the chores game. Utilities refer to these keyframes by
+ * name, e.g. `animate-[game-bob_3s_ease-in-out_infinite]`, or use the
+ * classes below. Everything stands still for people who prefer less motion.
+ */
+
+@keyframes game-bob {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-5px) rotate(3deg); }
+}
+
+@keyframes game-waves {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes game-shimmer {
+  0% { transform: translateX(-150%) skewX(-20deg); }
+  60%, 100% { transform: translateX(350%) skewX(-20deg); }
+}
+
+@keyframes game-stamp {
+  0% { transform: scale(2.4) rotate(-30deg); opacity: 0; }
+  55% { transform: scale(0.88) rotate(-8deg); opacity: 1; }
+  75% { transform: scale(1.06) rotate(-14deg); }
+  100% { transform: scale(1) rotate(-12deg); opacity: 1; }
+}
+
+@keyframes game-rise {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes game-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+
+@keyframes game-wobble {
+  0%, 100% { transform: rotate(0); }
+  15% { transform: rotate(-14deg); }
+  30% { transform: rotate(10deg); }
+  45% { transform: rotate(-6deg); }
+  60% { transform: rotate(3deg); }
+}
+
+@keyframes game-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(251 191 36 / 0.65); }
+  50% { box-shadow: 0 0 0 10px rgb(251 191 36 / 0); }
+}
+
+@keyframes game-twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.7); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes game-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes game-spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+/* Voyage worlds: tractor, web-slinger and wakeboard scenes. */
+@keyframes game-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(-140px); }
+}
+
+@keyframes game-rumble {
+  to { transform: translateY(-2px); }
+}
+
+@keyframes game-swing {
+  0%, 100% { transform: rotate(-7deg); }
+  50% { transform: rotate(7deg); }
+}
+
+@keyframes game-puff {
+  0% { opacity: 0.8; transform: translate(0, 0) scale(0.5); }
+  100% { opacity: 0; transform: translate(-10px, -26px) scale(1.6); }
+}
+
+.game-wheel {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: game-spin-slow 1.2s linear infinite;
+}
+.game-puff {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: game-puff 1.6s ease-out infinite;
+}
+
+.game-rise {
+  animation: game-rise 0.5s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+}
+.game-bob {
+  animation: game-bob 3s ease-in-out infinite;
+}
+.game-float {
+  animation: game-float 2.6s ease-in-out infinite;
+}
+.game-glow {
+  animation: game-glow 1.8s ease-out infinite;
+}
+.game-twinkle {
+  animation: game-twinkle 2.4s ease-in-out infinite;
+}
+.game-stamp {
+  animation: game-stamp 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.game-wobble {
+  animation: game-wobble 2.8s ease-in-out infinite;
+}
+.game-pop {
+  animation: game-pop 0.35s ease-out;
+}
+
+/* A shine that sweeps across its (relative, overflow-hidden) parent. */
+.game-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+  animation: game-shimmer 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes game-reveal {
+  0% { transform: translate(-50%, 70px) scale(0.2); opacity: 0; }
+  60% { transform: translate(-50%, -10px) scale(1.12); opacity: 1; }
+  100% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+}
+
+@keyframes game-rays {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* The big treasure chest. The lid hinges at its back-left corner. */
+.chest-lid {
+  transform-box: view-box;
+  transform-origin: 30px 112px;
+  transition: transform 0.6s cubic-bezier(0.3, 1.7, 0.5, 1);
+}
+.chest[data-state="open"] .chest-lid,
+.chest[data-state="claimed"] .chest-lid {
+  /* Swung right back on its hinge, standing up beside the chest. */
+  transform: rotate(-100deg);
+}
+.chest-glow,
+.chest-rays {
+  opacity: 0;
+  transition: opacity 0.4s ease-out;
+}
+.chest[data-state="open"] :is(.chest-glow, .chest-rays),
+.chest[data-state="claimed"] :is(.chest-glow, .chest-rays) {
+  opacity: 1;
+}
+.chest-rays {
+  animation: game-rays 14s linear infinite;
+}
+.game-reveal {
+  animation: game-reveal 0.65s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chest-lid {
+    transition: none;
+  }
+  .chest-rays {
+    animation: none !important;
+  }
+  [class*="game-"],
+  [class*="game-"]::after,
+  [class*="animate-"] {
+    animation: none !important;
+  }
+  .game-shine::after {
+    display: none;
+  }
+}

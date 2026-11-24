@@ -17,3 +17,8 @@ todos.json
 
 # typescript
 *.tsbuildinfo
+
+!.env.example
+
+# prisma
+packages/db/src/generated

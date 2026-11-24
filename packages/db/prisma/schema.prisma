@@ -1,0 +1,198 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// A bank account that appears in an export (the "Exportkonto" column).
+model Account {
+  /// Account number exactly as the bank exports it.
+  number       String        @id
+  /// Friendly name, e.g. "Budgetkonto". Set on the settings page.
+  name         String?
+  /// Balance after the most recent imported transaction.
+  balance      Decimal?      @db.Decimal(14, 2)
+  balanceDate  DateTime?     @db.Date
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+/// A normalised version of the "Tekst" column. Many raw texts can share a key
+/// (e.g. "Debitkort DK COMPASS GROUP D" and "COMPASS GROUP D" -> "COMPASS GROUP D").
+/// The family translates keys into something readable on the settings page.
+model TextKey {
+  key          String        @id
+  /// Human friendly name, e.g. "Canteen at work".
+  label        String?
+  /// Free-text category, e.g. "Groceries", "Insurance", "Salary".
+  category     String?
+  /// Money moved between our own accounts. Excluded from income/expense totals.
+  isTransfer   Boolean       @default(false)
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Import {
+  id           String        @id @default(cuid())
+  fileName     String
+  rowCount     Int
+  createdCount Int
+  importedAt   DateTime      @default(now())
+  transactions Transaction[]
+}
+
+model Transaction {
+  id                 String   @id @default(cuid())
+  accountNumber      String
+  account            Account  @relation(fields: [accountNumber], references: [number])
+  date               DateTime @db.Date
+  /// Negative = money out of the account.
+  amount             Decimal  @db.Decimal(14, 2)
+  /// Account balance after this transaction.
+  balance            Decimal  @db.Decimal(14, 2)
+  /// Raw "Tekst" column.
+  text               String
+  key                String
+  textKey            TextKey  @relation(fields: [key], references: [key])
+  /// The other account involved, when the bank includes it.
+  counterparty       String?
+  payer              String?
+  note               String?
+  receiverText       String?
+  /// The family's own note about the transaction, e.g. "Birthday present for
+  /// Grandma". Never touched by imports.
+  description        String?
+  /// Counterparty is one of our own (exported) accounts.
+  isInternalTransfer Boolean  @default(false)
+  /// Stable hash of the row so re-uploading overlapping files never duplicates.
+  fingerprint        String   @unique
+  importId           String
+  import             Import   @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([accountNumber, date])
+  @@index([date])
+  @@index([key])
+}
+
+/// Settings for a category name used on TextKey.category, e.g. putting
+/// "Gaming" and "Fastfood" in the overarching group "Fun & games".
+model Category {
+  name      String   @id
+  group     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Someone in the family who does chores and earns doubloons.
+model Member {
+  id         String          @id @default(cuid())
+  name       String
+  /// Hex colour, e.g. "#e11d48". Used for their avatar and progress.
+  color      String
+  emoji      String
+  position   Int             @default(0)
+  /// Archived members keep their history but can't be picked any more.
+  archived   Boolean         @default(false)
+  choresDone WeekChore[]
+  entries    DoubloonEntry[]
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+}
+
+/// A chore in the library that can be put into any week, again and again.
+model ChoreTemplate {
+  id         String      @id @default(cuid())
+  title      String
+  /// Doubloons for finishing it.
+  doubloons  Int         @default(10)
+  /// The checklist, in order.
+  items      String[]
+  weekChores WeekChore[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+/// A chore planned for one week (Monday to Sunday). Copies the template so
+/// later library edits don't change it.
+model WeekChore {
+  id         String          @id @default(cuid())
+  /// The Monday the week starts.
+  week       DateTime        @db.Date
+  position   Int
+  title      String
+  doubloons  Int
+  templateId String?
+  template   ChoreTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  items      WeekChoreItem[]
+  /// Who finished it. Null while it isn't done.
+  doneById   String?
+  doneBy     Member?         @relation(fields: [doneById], references: [id], onDelete: Restrict)
+  doneAt     DateTime?
+  entries    DoubloonEntry[]
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@index([week, position])
+}
+
+model WeekChoreItem {
+  id          String    @id @default(cuid())
+  weekChoreId String
+  weekChore   WeekChore @relation(fields: [weekChoreId], references: [id], onDelete: Cascade)
+  label       String
+  position    Int
+  done        Boolean   @default(false)
+
+  @@index([weekChoreId, position])
+}
+
+/// A week whose missed chores have been charged.
+model WeekSettlement {
+  week      DateTime @id @db.Date
+  createdAt DateTime @default(now())
+}
+
+enum DoubloonKind {
+  /// Paid for finishing a chore.
+  reward
+  /// Charged when a week ends with a chore undone.
+  penalty
+  /// Spent on a treasure.
+  purchase
+}
+
+/// One change to a member's purse. Their balance is the sum.
+model DoubloonEntry {
+  id          String       @id @default(cuid())
+  kind        DoubloonKind
+  /// Positive = earned, negative = lost or spent.
+  amount      Int
+  /// What it was for, kept even if the chore or treasure is deleted later.
+  note        String
+  memberId    String
+  member      Member       @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  weekChoreId String?
+  weekChore   WeekChore?   @relation(fields: [weekChoreId], references: [id], onDelete: SetNull)
+  treasureId  String?
+  treasure    Treasure?    @relation(fields: [treasureId], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+
+  @@index([memberId, createdAt])
+  @@index([weekChoreId])
+}
+
+/// Something the family can buy with doubloons at the end of the week.
+model Treasure {
+  id        String          @id @default(cuid())
+  title     String
+  /// Price in doubloons.
+  cost      Int
+  purchases DoubloonEntry[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
