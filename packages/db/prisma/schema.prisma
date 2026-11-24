@@ -9,8 +9,10 @@ datasource db {
 
 /// A bank account that appears in an export (the "Exportkonto" column).
 model Account {
+  familyId     String
+  family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
   /// Account number exactly as the bank exports it.
-  number       String        @id
+  number       String
   /// Friendly name, e.g. "Budgetkonto". Set on the settings page.
   name         String?
   /// Balance after the most recent imported transaction.
@@ -19,13 +21,17 @@ model Account {
   transactions Transaction[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+
+  @@id([familyId, number])
 }
 
 /// A normalised version of the "Tekst" column. Many raw texts can share a key
 /// (e.g. "Debitkort DK COMPASS GROUP D" and "COMPASS GROUP D" -> "COMPASS GROUP D").
 /// The family translates keys into something readable on the settings page.
 model TextKey {
-  key          String        @id
+  familyId     String
+  family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  key          String
   /// Human friendly name, e.g. "Canteen at work".
   label        String?
   /// Free-text category, e.g. "Groceries", "Insurance", "Salary".
@@ -35,21 +41,29 @@ model TextKey {
   transactions Transaction[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+
+  @@id([familyId, key])
 }
 
 model Import {
   id           String        @id @default(cuid())
+  familyId     String
+  family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
   fileName     String
   rowCount     Int
   createdCount Int
   importedAt   DateTime      @default(now())
   transactions Transaction[]
+
+  @@index([familyId, importedAt])
 }
 
 model Transaction {
   id                 String   @id @default(cuid())
+  familyId           String
+  family             Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
   accountNumber      String
-  account            Account  @relation(fields: [accountNumber], references: [number])
+  account            Account  @relation(fields: [familyId, accountNumber], references: [familyId, number])
   date               DateTime @db.Date
   /// Negative = money out of the account.
   amount             Decimal  @db.Decimal(14, 2)
@@ -58,7 +72,7 @@ model Transaction {
   /// Raw "Tekst" column.
   text               String
   key                String
-  textKey            TextKey  @relation(fields: [key], references: [key])
+  textKey            TextKey  @relation(fields: [familyId, key], references: [familyId, key])
   /// The other account involved, when the bank includes it.
   counterparty       String?
   payer              String?
@@ -70,43 +84,121 @@ model Transaction {
   /// Counterparty is one of our own (exported) accounts.
   isInternalTransfer Boolean  @default(false)
   /// Stable hash of the row so re-uploading overlapping files never duplicates.
-  fingerprint        String   @unique
+  fingerprint        String
   importId           String
   import             Import   @relation(fields: [importId], references: [id], onDelete: Cascade)
 
-  @@index([accountNumber, date])
-  @@index([date])
-  @@index([key])
+  @@unique([familyId, fingerprint])
+  @@index([familyId, accountNumber, date])
+  @@index([familyId, date])
+  @@index([familyId, key])
 }
 
 /// Settings for a category name used on TextKey.category, e.g. putting
 /// "Gaming" and "Fastfood" in the overarching group "Fun & games".
 model Category {
-  name      String   @id
+  familyId  String
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  name      String
   group     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@id([familyId, name])
+}
+
+/// A household. Everything else (budget, crew, chores, treasures) belongs to
+/// exactly one family, and nobody sees another family's data.
+model Family {
+  id             String           @id @default(cuid())
+  name           String
+  members        Member[]
+  accounts       Account[]
+  textKeys       TextKey[]
+  imports        Import[]
+  transactions   Transaction[]
+  categories     Category[]
+  choreTemplates ChoreTemplate[]
+  weekChores     WeekChore[]
+  settlements    WeekSettlement[]
+  entries        DoubloonEntry[]
+  treasures      Treasure[]
+  sessions       Session[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+enum Role {
+  /// Runs the family: dashboard, planning, settings. Logs in with email.
+  parent
+  /// Plays the chores game only, on a device a parent has logged in on.
+  child
+}
+
+enum Plan {
+  /// The chores game, planning and the family settings.
+  basic
+  /// Everything, including the overview, budget and calendar.
+  pro
+}
+
+enum SessionKind {
+  /// The site admin, who sets up parent accounts.
+  admin
+  /// A device logged in to a family by a parent.
+  family
+}
+
+/// A logged-in browser. The cookie holds a random token; only its SHA-256
+/// hash is stored here.
+model Session {
+  id        String      @id
+  kind      SessionKind
+  familyId  String?
+  family    Family?     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  /// Who is using the device right now. Children switch in freely; switching
+  /// to a parent takes their password.
+  memberId  String?
+  member    Member?     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime    @default(now())
+
+  @@index([expiresAt])
 }
 
 /// Someone in the family who does chores and earns doubloons.
 model Member {
-  id         String          @id @default(cuid())
-  name       String
+  id           String          @id @default(cuid())
+  familyId     String
+  family       Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  role         Role            @default(child)
+  /// What a parent may use: basic is the chores; pro adds the overview,
+  /// budget and calendar. Set by the admin. Children are always basic.
+  plan         Plan            @default(basic)
+  /// Parents log in with email and password. Children have neither.
+  email        String?         @unique
+  passwordHash String?
+  sessions     Session[]
+  name         String
   /// Hex colour, e.g. "#e11d48". Used for their avatar and progress.
-  color      String
-  emoji      String
-  position   Int             @default(0)
+  color        String
+  emoji        String
+  position     Int             @default(0)
   /// Archived members keep their history but can't be picked any more.
-  archived   Boolean         @default(false)
-  choresDone WeekChore[]
-  entries    DoubloonEntry[]
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
+  archived     Boolean         @default(false)
+  choresDone   WeekChore[]
+  entries      DoubloonEntry[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([familyId, position])
 }
 
 /// A chore in the library that can be put into any week, again and again.
 model ChoreTemplate {
   id         String      @id @default(cuid())
+  familyId   String
+  family     Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
   title      String
   /// Doubloons for finishing it.
   doubloons  Int         @default(10)
@@ -115,12 +207,16 @@ model ChoreTemplate {
   weekChores WeekChore[]
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
+
+  @@index([familyId])
 }
 
 /// A chore planned for one week (Monday to Sunday). Copies the template so
 /// later library edits don't change it.
 model WeekChore {
   id         String          @id @default(cuid())
+  familyId   String
+  family     Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
   /// The Monday the week starts.
   week       DateTime        @db.Date
   position   Int
@@ -137,7 +233,7 @@ model WeekChore {
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
 
-  @@index([week, position])
+  @@index([familyId, week, position])
 }
 
 model WeekChoreItem {
@@ -153,8 +249,12 @@ model WeekChoreItem {
 
 /// A week whose missed chores have been charged.
 model WeekSettlement {
-  week      DateTime @id @db.Date
+  familyId  String
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  week      DateTime @db.Date
   createdAt DateTime @default(now())
+
+  @@id([familyId, week])
 }
 
 enum DoubloonKind {
@@ -169,6 +269,8 @@ enum DoubloonKind {
 /// One change to a member's purse. Their balance is the sum.
 model DoubloonEntry {
   id          String       @id @default(cuid())
+  familyId    String
+  family      Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
   kind        DoubloonKind
   /// Positive = earned, negative = lost or spent.
   amount      Int
@@ -183,16 +285,21 @@ model DoubloonEntry {
   createdAt   DateTime     @default(now())
 
   @@index([memberId, createdAt])
+  @@index([familyId, createdAt])
   @@index([weekChoreId])
 }
 
 /// Something the family can buy with doubloons at the end of the week.
 model Treasure {
   id        String          @id @default(cuid())
+  familyId  String
+  family    Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
   title     String
   /// Price in doubloons.
   cost      Int
   purchases DoubloonEntry[]
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
+
+  @@index([familyId])
 }

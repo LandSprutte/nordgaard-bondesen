@@ -13,10 +13,11 @@ export type ImportResult = {
 
 /**
  * Import a bank CSV export. Safe to run repeatedly with overlapping files:
- * rows already in the database are skipped.
+ * rows already in the family's books are skipped.
  */
 export async function importBankCsv(
   prisma: PrismaClient,
+  familyId: string,
   file: { name: string; bytes: Uint8Array }
 ): Promise<ImportResult> {
   const rows = parseBankCsv(decodeBankCsv(file.bytes))
@@ -24,27 +25,36 @@ export async function importBankCsv(
 
   return prisma.$transaction(async (tx) => {
     await tx.account.createMany({
-      data: accounts.map((number) => ({ number })),
+      data: accounts.map((number) => ({ familyId, number })),
       skipDuplicates: true,
     })
 
     const existingKeys = new Set(
       (
         await tx.textKey.findMany({
-          where: { key: { in: rows.map((row) => row.key) } },
+          where: { familyId, key: { in: rows.map((row) => row.key) } },
           select: { key: true },
         })
       ).map((k) => k.key)
     )
     const newKeys = keyDefaults(rows).filter((k) => !existingKeys.has(k.key))
-    await tx.textKey.createMany({ data: newKeys, skipDuplicates: true })
+    await tx.textKey.createMany({
+      data: newKeys.map((k) => ({ ...k, familyId })),
+      skipDuplicates: true,
+    })
 
     const batch = await tx.import.create({
-      data: { fileName: file.name, rowCount: rows.length, createdCount: 0 },
+      data: {
+        familyId,
+        fileName: file.name,
+        rowCount: rows.length,
+        createdCount: 0,
+      },
     })
 
     const { count } = await tx.transaction.createMany({
       data: rows.map((row) => ({
+        familyId,
         accountNumber: row.account,
         date: new Date(`${row.date}T00:00:00Z`),
         amount: row.amount,
@@ -72,6 +82,7 @@ export async function importBankCsv(
       const date = new Date(`${latest.date}T00:00:00Z`)
       await tx.account.updateMany({
         where: {
+          familyId,
           number: latest.account,
           OR: [{ balanceDate: null }, { balanceDate: { lte: date } }],
         },

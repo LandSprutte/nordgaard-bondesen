@@ -5,23 +5,28 @@ import { dateOf, penaltyFor, toDbDate, today, weekStart } from "@/lib/chores"
 // Server-only. Import this from inside server function handlers only: a plain
 // export that uses prisma would otherwise end up in the client bundle.
 
-/** Any number, as long as nothing else uses it as an advisory lock key. */
+/** Any number, as long as nothing else uses it as an advisory lock key.
+ * Paired with a hash of the family id, so families don't wait on each other. */
 const SETTLE_LOCK = 4242002
 
 /**
- * Charges every week that has ended with chores left undone: each active
- * member loses 10% of their purse per undone chore, one chore after another.
+ * Charges every week a family has ended with chores left undone: each
+ * active member loses 10% of their purse per undone chore, one chore after
+ * another.
  * Runs lazily on page loads and does nothing once a week is settled.
  */
-export async function settleWeeks(on: string = today()) {
+export async function settleWeeks(familyId: string, on: string = today()) {
   const thisWeek = toDbDate(weekStart(on))
   const [planned, settled] = await Promise.all([
     prisma.weekChore.findMany({
-      where: { week: { lt: thisWeek } },
+      where: { familyId, week: { lt: thisWeek } },
       distinct: ["week"],
       select: { week: true },
     }),
-    prisma.weekSettlement.findMany({ select: { week: true } }),
+    prisma.weekSettlement.findMany({
+      where: { familyId },
+      select: { week: true },
+    }),
   ])
   const done = new Set(settled.map((s) => dateOf(s.week)))
   const pending = planned
@@ -31,24 +36,26 @@ export async function settleWeeks(on: string = today()) {
 
   for (const week of pending) {
     await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${SETTLE_LOCK})`
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${SETTLE_LOCK}::int, hashtext(${familyId}))`
       const weekDate = toDbDate(week)
       // Another request may have settled it while we waited.
-      if (await tx.weekSettlement.findUnique({ where: { week: weekDate } })) {
+      const key = { familyId_week: { familyId, week: weekDate } }
+      if (await tx.weekSettlement.findUnique({ where: key })) {
         return
       }
       const [undone, members, sums] = await Promise.all([
         tx.weekChore.findMany({
-          where: { week: weekDate, doneById: null },
+          where: { familyId, week: weekDate, doneById: null },
           orderBy: { position: "asc" },
           select: { id: true, title: true },
         }),
         tx.member.findMany({
-          where: { archived: false },
+          where: { familyId, archived: false },
           select: { id: true },
         }),
         tx.doubloonEntry.groupBy({
           by: ["memberId"],
+          where: { familyId },
           _sum: { amount: true },
         }),
       ])
@@ -60,6 +67,7 @@ export async function settleWeeks(on: string = today()) {
           if (charge === 0) continue
           balance.set(member.id, (balance.get(member.id) ?? 0) - charge)
           charges.push({
+            familyId,
             kind: "penalty" as const,
             amount: -charge,
             note: chore.title,
@@ -69,7 +77,7 @@ export async function settleWeeks(on: string = today()) {
         }
       }
       if (charges.length) await tx.doubloonEntry.createMany({ data: charges })
-      await tx.weekSettlement.create({ data: { week: weekDate } })
+      await tx.weekSettlement.create({ data: { familyId, week: weekDate } })
     })
   }
 }

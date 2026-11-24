@@ -3,6 +3,7 @@ import { z } from "zod"
 import { prisma } from "@workspace/db"
 
 import { dateOf, toLocalDate, today } from "@/lib/chores"
+import { requireFamily } from "@/server/session"
 import { settleWeeks } from "@/server/settle-weeks"
 
 const memberSelect = {
@@ -15,15 +16,17 @@ const memberSelect = {
 
 /** Everyone in the crew with what's in their purse. */
 export const getPurses = createServerFn({ method: "GET" }).handler(async () => {
-  await settleWeeks(today())
+  const { familyId } = await requireFamily()
+  await settleWeeks(familyId, today())
   const [members, sums] = await Promise.all([
     prisma.member.findMany({
-      where: { archived: false },
+      where: { familyId, archived: false },
       select: memberSelect,
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     }),
     prisma.doubloonEntry.groupBy({
       by: ["memberId"],
+      where: { familyId },
       _sum: { amount: true },
     }),
   ])
@@ -45,8 +48,11 @@ export const getLog = createServerFn({ method: "GET" })
     })
   )
   .handler(async ({ data }) => {
-    await settleWeeks(today())
-    const where = data.memberId ? { memberId: data.memberId } : {}
+    const { familyId } = await requireFamily()
+    await settleWeeks(familyId, today())
+    const where = data.memberId
+      ? { familyId, memberId: data.memberId }
+      : { familyId }
     const [entries, total, members, totals] = await Promise.all([
       prisma.doubloonEntry.findMany({
         where,
@@ -64,11 +70,13 @@ export const getLog = createServerFn({ method: "GET" })
       }),
       prisma.doubloonEntry.count({ where }),
       prisma.member.findMany({
+        where: { familyId },
         select: memberSelect,
         orderBy: [{ archived: "asc" }, { position: "asc" }],
       }),
       prisma.doubloonEntry.groupBy({
         by: ["memberId", "kind"],
+        where: { familyId },
         _sum: { amount: true },
         _count: true,
       }),

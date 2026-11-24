@@ -12,7 +12,11 @@ import {
   today,
   weekStart,
 } from "@/lib/chores"
+import { requireFamily, requireParent } from "@/server/session"
 import { settleWeeks } from "@/server/settle-weeks"
+
+/** How far back to look for the streak of days with chores done. */
+const STREAK_DAYS = 120
 
 const weekInput = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 
@@ -42,6 +46,8 @@ function present(
     position: chore.position,
     items: chore.items,
     doneBy: chore.doneBy,
+    /** Local date it was finished, if it is. */
+    doneOn: chore.doneAt ? toLocalDate(chore.doneAt) : null,
   }
 }
 
@@ -54,11 +60,18 @@ function assertEditable(week: Date) {
   }
 }
 
-/** Takes the chore's row lock, so completions and edits don't race. */
-async function lockChore(tx: Prisma.TransactionClient, id: string) {
-  await tx.$executeRaw`SELECT 1 FROM "WeekChore" WHERE id = ${id} FOR UPDATE`
+/**
+ * Takes the chore's row lock, so completions and edits don't race. Only
+ * finds chores in the viewer's family.
+ */
+async function lockChore(
+  tx: Prisma.TransactionClient,
+  id: string,
+  familyId: string
+) {
+  await tx.$executeRaw`SELECT 1 FROM "WeekChore" WHERE id = ${id} AND "familyId" = ${familyId} FOR UPDATE`
   const chore = await tx.weekChore.findUniqueOrThrow({
-    where: { id },
+    where: { id, familyId },
     include: { items: { select: { id: true, done: true } } },
   })
   assertEditable(chore.week)
@@ -79,34 +92,53 @@ function takeBackReward(tx: Prisma.TransactionClient, weekChoreId: string) {
 export const getWeek = createServerFn({ method: "GET" })
   .validator(z.object({ week: weekInput.optional() }))
   .handler(async ({ data }) => {
+    const viewer = await requireFamily()
+    const { familyId } = viewer
     const on = today()
-    await settleWeeks(on)
+    await settleWeeks(familyId, on)
     const thisWeek = weekStart(on)
     const week = weekStart(data.week ?? on)
     const weekDate = toDbDate(week)
     const lastWeekDate = toDbDate(addDays(week, -7))
 
-    const [chores, members, balances, earned, recent, lastWeek] =
+    const [chores, members, balances, earned, xp, finishes, recent, lastWeek] =
       await Promise.all([
         prisma.weekChore.findMany({
-          where: { week: weekDate },
+          where: { familyId, week: weekDate },
           orderBy: { position: "asc" },
           include: choreInclude,
         }),
         prisma.member.findMany({
+          where: { familyId },
           select: memberSelect,
           orderBy: [{ position: "asc" }, { createdAt: "asc" }],
         }),
         prisma.doubloonEntry.groupBy({
           by: ["memberId"],
+          where: { familyId },
           _sum: { amount: true },
         }),
         prisma.doubloonEntry.groupBy({
           by: ["memberId"],
-          where: { kind: "reward", weekChore: { week: weekDate } },
+          where: { familyId, kind: "reward", weekChore: { week: weekDate } },
           _sum: { amount: true },
         }),
+        // Everything ever earned from chores, as experience.
+        prisma.doubloonEntry.groupBy({
+          by: ["memberId"],
+          where: { familyId, kind: "reward" },
+          _sum: { amount: true },
+        }),
+        // When chores got finished lately, for the streak.
+        prisma.weekChore.findMany({
+          where: {
+            familyId,
+            doneAt: { gte: new Date(Date.now() - STREAK_DAYS * 86_400_000) },
+          },
+          select: { doneAt: true },
+        }),
         prisma.doubloonEntry.findMany({
+          where: { familyId },
           orderBy: { createdAt: "desc" },
           take: 8,
           select: {
@@ -119,7 +151,7 @@ export const getWeek = createServerFn({ method: "GET" })
           },
         }),
         prisma.weekChore.findMany({
-          where: { week: lastWeekDate, doneById: null },
+          where: { familyId, week: lastWeekDate, doneById: null },
           select: {
             title: true,
             entries: {
@@ -132,6 +164,15 @@ export const getWeek = createServerFn({ method: "GET" })
 
     const balanceOf = new Map(balances.map((b) => [b.memberId, b._sum.amount]))
     const earnedOf = new Map(earned.map((b) => [b.memberId, b._sum.amount]))
+    const xpOf = new Map(xp.map((b) => [b.memberId, b._sum.amount]))
+    const doneDates = new Set(
+      finishes.flatMap((f) => (f.doneAt ? [toLocalDate(f.doneAt)] : []))
+    )
+    // Days in a row, up to yesterday, with at least one chore finished.
+    let streakBeforeToday = 0
+    while (doneDates.has(addDays(on, -streakBeforeToday - 1))) {
+      streakBeforeToday++
+    }
     const presented = chores.map(present)
     const crew = members
       // Archived members only show up on weeks they took part in.
@@ -142,6 +183,7 @@ export const getWeek = createServerFn({ method: "GET" })
         ...m,
         balance: balanceOf.get(m.id) ?? 0,
         earned: earnedOf.get(m.id) ?? 0,
+        xp: xpOf.get(m.id) ?? 0,
       }))
 
     const lostLastWeek = new Map<string, number>()
@@ -153,12 +195,15 @@ export const getWeek = createServerFn({ method: "GET" })
     }
 
     return {
+      /** Who is playing on this device. */
+      me: { id: viewer.member.id, isParent: viewer.isParent },
       today: on,
       thisWeek,
       week,
       editable: week >= thisWeek,
       chores: presented,
       crew,
+      streakBeforeToday,
       recent: recent.map(({ createdAt, ...entry }) => ({
         ...entry,
         date: toLocalDate(createdAt),
@@ -189,20 +234,22 @@ export const addToWeek = createServerFn({ method: "POST" })
     })
   )
   .handler(async ({ data }) => {
+    const { familyId } = await requireParent()
     const week = toDbDate(weekStart(data.week))
     assertEditable(week)
     return prisma.$transaction(async (tx) => {
       const template = await tx.choreTemplate.findUniqueOrThrow({
-        where: { id: data.templateId },
+        where: { id: data.templateId, familyId },
       })
-      const count = await tx.weekChore.count({ where: { week } })
+      const count = await tx.weekChore.count({ where: { familyId, week } })
       const position = Math.min(data.position ?? count, count)
       await tx.weekChore.updateMany({
-        where: { week, position: { gte: position } },
+        where: { familyId, week, position: { gte: position } },
         data: { position: { increment: 1 } },
       })
       const chore = await tx.weekChore.create({
         data: {
+          familyId,
           week,
           position,
           title: template.title,
@@ -221,21 +268,23 @@ export const addToWeek = createServerFn({ method: "POST" })
 export const copyPreviousWeek = createServerFn({ method: "POST" })
   .validator(z.object({ week: weekInput }))
   .handler(async ({ data }) => {
+    const { familyId } = await requireParent()
     const monday = weekStart(data.week)
     const week = toDbDate(monday)
     assertEditable(week)
     return prisma.$transaction(async (tx) => {
       const [previous, count] = await Promise.all([
         tx.weekChore.findMany({
-          where: { week: toDbDate(addDays(monday, -7)) },
+          where: { familyId, week: toDbDate(addDays(monday, -7)) },
           orderBy: { position: "asc" },
           include: { items: { orderBy: { position: "asc" } } },
         }),
-        tx.weekChore.count({ where: { week } }),
+        tx.weekChore.count({ where: { familyId, week } }),
       ])
       for (const [i, chore] of previous.entries()) {
         await tx.weekChore.create({
           data: {
+            familyId,
             week,
             position: count + i,
             title: chore.title,
@@ -272,9 +321,10 @@ export const updateWeekChore = createServerFn({ method: "POST" })
         .max(100),
     })
   )
-  .handler(({ data: { id, items, ...fields } }) =>
-    prisma.$transaction(async (tx) => {
-      const chore = await lockChore(tx, id)
+  .handler(async ({ data: { id, items, ...fields } }) => {
+    const { familyId } = await requireParent()
+    return prisma.$transaction(async (tx) => {
+      const chore = await lockChore(tx, id, familyId)
       await tx.weekChore.update({ where: { id }, data: fields })
 
       const existingIds = new Set(chore.items.map((item) => item.id))
@@ -309,6 +359,7 @@ export const updateWeekChore = createServerFn({ method: "POST" })
         if (fields.doubloons > 0) {
           await tx.doubloonEntry.create({
             data: {
+              familyId,
               kind: "reward",
               amount: fields.doubloons,
               note: fields.title,
@@ -319,36 +370,38 @@ export const updateWeekChore = createServerFn({ method: "POST" })
         }
       }
     })
-  )
+  })
 
 /** Takes a chore out of its week, and back from whoever did it. */
 export const removeWeekChore = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.string().min(1) }))
-  .handler(({ data }) =>
-    prisma.$transaction(async (tx) => {
-      const chore = await lockChore(tx, data.id)
+  .handler(async ({ data }) => {
+    const { familyId } = await requireParent()
+    return prisma.$transaction(async (tx) => {
+      const chore = await lockChore(tx, data.id, familyId)
       await takeBackReward(tx, data.id)
       await tx.weekChore.delete({ where: { id: data.id } })
       await tx.weekChore.updateMany({
-        where: { week: chore.week, position: { gt: chore.position } },
+        where: { familyId, week: chore.week, position: { gt: chore.position } },
         data: { position: { decrement: 1 } },
       })
     })
-  )
+  })
 
 /** Moves a chore to another place in its week. */
 export const moveWeekChore = createServerFn({ method: "POST" })
   .validator(
     z.object({ id: z.string().min(1), position: z.number().int().min(0) })
   )
-  .handler(({ data }) =>
-    prisma.$transaction(async (tx) => {
+  .handler(async ({ data }) => {
+    const { familyId } = await requireParent()
+    return prisma.$transaction(async (tx) => {
       const chore = await tx.weekChore.findUniqueOrThrow({
-        where: { id: data.id },
+        where: { id: data.id, familyId },
       })
       assertEditable(chore.week)
       const order = await tx.weekChore.findMany({
-        where: { week: chore.week },
+        where: { familyId, week: chore.week },
         orderBy: { position: "asc" },
         select: { id: true },
       })
@@ -358,22 +411,26 @@ export const moveWeekChore = createServerFn({ method: "POST" })
         await tx.weekChore.update({ where: { id }, data: { position } })
       }
     })
-  )
+  })
 
 /**
  * Ticks a checklist item. Unticking an item on a done chore reopens it and
- * takes the reward back. Says whether every item is now ticked, so the
+ * takes the reward back, which only a parent may do. Says whether every item is now ticked, so the
  * page can ask who did it.
  */
 export const setWeekChoreItemDone = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.string().min(1), done: z.boolean() }))
   .handler(async ({ data }) => {
-    const item = await prisma.weekChoreItem.findUniqueOrThrow({
-      where: { id: data.id },
+    const viewer = await requireFamily()
+    const item = await prisma.weekChoreItem.findFirstOrThrow({
+      where: { id: data.id, weekChore: { familyId: viewer.familyId } },
       select: { weekChoreId: true },
     })
     return prisma.$transaction(async (tx) => {
-      const chore = await lockChore(tx, item.weekChoreId)
+      const chore = await lockChore(tx, item.weekChoreId, viewer.familyId)
+      if (!data.done && chore.doneById && !viewer.isParent) {
+        throw new Error("Kun en forælder kan fortryde en klaret tjans.")
+      }
       await tx.weekChoreItem.update({
         where: { id: data.id },
         data: { done: data.done },
@@ -395,14 +452,23 @@ export const setWeekChoreItemDone = createServerFn({ method: "POST" })
 /**
  * Finishes a chore for the member who did it: every item ticked, and the
  * whole reward to them (moved from someone else if it was already done).
+ * Children can only finish chores as themselves, and can't move one that's
+ * already done.
  */
 export const completeWeekChore = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.string().min(1), memberId: z.string().min(1) }))
-  .handler(({ data }) =>
-    prisma.$transaction(async (tx) => {
-      const chore = await lockChore(tx, data.id)
+  .handler(async ({ data }) => {
+    const viewer = await requireFamily()
+    if (!viewer.isParent && data.memberId !== viewer.member.id) {
+      throw new Error("Du kan kun klare tjanser for dig selv.")
+    }
+    return prisma.$transaction(async (tx) => {
+      const chore = await lockChore(tx, data.id, viewer.familyId)
+      if (chore.doneById && !viewer.isParent) {
+        throw new Error("Den tjans er allerede klaret.")
+      }
       const member = await tx.member.findUniqueOrThrow({
-        where: { id: data.memberId },
+        where: { id: data.memberId, familyId: viewer.familyId },
       })
       if (member.archived) throw new Error(`${member.name} er gået i land.`)
       await tx.weekChoreItem.updateMany({
@@ -417,6 +483,7 @@ export const completeWeekChore = createServerFn({ method: "POST" })
       if (chore.doubloons > 0) {
         await tx.doubloonEntry.create({
           data: {
+            familyId: viewer.familyId,
             kind: "reward",
             amount: chore.doubloons,
             note: chore.title,
@@ -426,18 +493,22 @@ export const completeWeekChore = createServerFn({ method: "POST" })
         })
       }
     })
-  )
+  })
 
-/** Marks a done chore as not done again and takes the reward back. */
+/**
+ * Marks a done chore as not done again and takes the reward back. Parents
+ * only.
+ */
 export const reopenWeekChore = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.string().min(1) }))
-  .handler(({ data }) =>
-    prisma.$transaction(async (tx) => {
-      const chore = await lockChore(tx, data.id)
+  .handler(async ({ data }) => {
+    const { familyId } = await requireParent()
+    return prisma.$transaction(async (tx) => {
+      const chore = await lockChore(tx, data.id, familyId)
       await takeBackReward(tx, chore.id)
       await tx.weekChore.update({
         where: { id: chore.id },
         data: { doneById: null, doneAt: null },
       })
     })
-  )
+  })

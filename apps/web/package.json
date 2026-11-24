@@ -22,6 +22,7 @@
     "@workspace/db": "workspace:*",
     "@workspace/ui": "workspace:*",
     "lucide-react": "^1.74.0",
+    "nitro": "3.0.261103-rc",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "recharts": "3.8.0",

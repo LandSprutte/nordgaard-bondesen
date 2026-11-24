@@ -18,6 +18,7 @@ import {
 import type { Granularity, Period } from "@/lib/period"
 import { UNCATEGORISED, UNGROUPED } from "@/lib/budget"
 import { buildSpendingTree } from "@/lib/spending"
+import { requirePro } from "@/server/session"
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -31,11 +32,12 @@ const periodSchema = z
   )
   .optional()
 
-/** All months that have transactions, newest first ("2026-10"). */
-async function availableMonths(): Promise<Array<string>> {
+/** All months the family has transactions in, newest first ("2026-10"). */
+async function availableMonths(familyId: string): Promise<Array<string>> {
   const rows = await prisma.$queryRaw<Array<{ month: string }>>`
     SELECT DISTINCT to_char(date, 'YYYY-MM') AS month
     FROM "Transaction"
+    WHERE "familyId" = ${familyId}
     ORDER BY month DESC`
   return rows.map((row) => row.month)
 }
@@ -140,7 +142,8 @@ function inRange(row: Row, range: { gte: Date; lt: Date }) {
 export const getBudgetSummary = createServerFn({ method: "GET" })
   .validator(z.object({ period: periodSchema }))
   .handler(async ({ data }) => {
-    const months = await availableMonths()
+    const { familyId } = await requirePro()
+    const months = await availableMonths(familyId)
     const period = resolvePeriod(data.period, months)
     const previous = shiftPeriod(period, -1)
     const current = periodRange(period)
@@ -153,9 +156,12 @@ export const getBudgetSummary = createServerFn({ method: "GET" })
 
     const [accounts, transactions, unmappedKeys, firstDates, categorySettings] =
       await Promise.all([
-        prisma.account.findMany({ orderBy: { number: "asc" } }),
+        prisma.account.findMany({
+          where: { familyId },
+          orderBy: { number: "asc" },
+        }),
         prisma.transaction.findMany({
-          where: { date: { gte: historyStart, lt: current.lt } },
+          where: { familyId, date: { gte: historyStart, lt: current.lt } },
           select: {
             date: true,
             accountNumber: true,
@@ -163,12 +169,17 @@ export const getBudgetSummary = createServerFn({ method: "GET" })
             textKey: { select: { isTransfer: true, category: true } },
           },
         }),
-        prisma.textKey.count({ where: { label: null, isTransfer: false } }),
+        prisma.textKey.count({
+          where: { familyId, label: null, isTransfer: false },
+        }),
         prisma.transaction.groupBy({
           by: ["accountNumber"],
+          where: { familyId },
           _min: { date: true },
         }),
-        prisma.category.findMany({ where: { group: { not: null } } }),
+        prisma.category.findMany({
+          where: { familyId, group: { not: null } },
+        }),
       ])
 
     const rows: Array<Row> = transactions.map((t) => ({
@@ -185,7 +196,7 @@ export const getBudgetSummary = createServerFn({ method: "GET" })
     // Balance at a point in time = latest balance minus everything after it.
     const afterCurrent = await prisma.transaction.groupBy({
       by: ["accountNumber"],
-      where: { date: { gte: current.lt } },
+      where: { familyId, date: { gte: current.lt } },
       _sum: { amount: true },
     })
     const sumAfter = (number: string, from: Date) => {
@@ -296,7 +307,8 @@ export const getBudgetSummary = createServerFn({ method: "GET" })
 export const getSpending = createServerFn({ method: "GET" })
   .validator(z.object({ period: periodSchema, account: z.string().optional() }))
   .handler(async ({ data }) => {
-    const months = await availableMonths()
+    const { familyId } = await requirePro()
+    const months = await availableMonths(familyId)
     const period = resolvePeriod(data.period, months)
     const periods = periodsEndingWith(
       period,
@@ -309,11 +321,13 @@ export const getSpending = createServerFn({ method: "GET" })
 
     const [accounts, transactions, categorySettings] = await Promise.all([
       prisma.account.findMany({
+        where: { familyId },
         select: { number: true, name: true },
         orderBy: { number: "asc" },
       }),
       prisma.transaction.findMany({
         where: {
+          familyId,
           date: { gte: ranges[0].gte, lt: ranges[ranges.length - 1].lt },
           amount: { lt: 0 },
           accountNumber: data.account,
@@ -329,7 +343,9 @@ export const getSpending = createServerFn({ method: "GET" })
           textKey: { select: { label: true, category: true } },
         },
       }),
-      prisma.category.findMany({ where: { group: { not: null } } }),
+      prisma.category.findMany({
+        where: { familyId, group: { not: null } },
+      }),
     ])
 
     const groupOf = new Map(
@@ -387,16 +403,19 @@ export const listTransactions = createServerFn({ method: "GET" })
     })
   )
   .handler(async ({ data }) => {
-    const months = await availableMonths()
+    const { familyId } = await requirePro()
+    const months = await availableMonths(familyId)
     const period = resolvePeriod(data.period, months)
 
     const [accounts, rows] = await Promise.all([
       prisma.account.findMany({
+        where: { familyId },
         select: { number: true, name: true },
         orderBy: { number: "asc" },
       }),
       prisma.transaction.findMany({
         where: {
+          familyId,
           date: periodRange(period),
           amount: data.direction === "in" ? { gte: 0 } : { lt: 0 },
           accountNumber: data.account,
@@ -450,8 +469,9 @@ export const uploadBankCsv = createServerFn({ method: "POST" })
     return file
   })
   .handler(async ({ data: file }) => {
+    const { familyId } = await requirePro()
     try {
-      return await importBankCsv(prisma, {
+      return await importBankCsv(prisma, familyId, {
         name: file.name,
         bytes: new Uint8Array(await file.arrayBuffer()),
       })
@@ -465,7 +485,9 @@ export const uploadBankCsv = createServerFn({ method: "POST" })
 
 export const listImports = createServerFn({ method: "GET" }).handler(
   async () => {
+    const { familyId } = await requirePro()
     const imports = await prisma.import.findMany({
+      where: { familyId },
       orderBy: { importedAt: "desc" },
       take: 12,
     })
@@ -485,16 +507,21 @@ export const listImports = createServerFn({ method: "GET" }).handler(
 
 export const getBudgetSettings = createServerFn({ method: "GET" }).handler(
   async () => {
+    const { familyId } = await requirePro()
     const [accounts, keys, stats, categorySettings] = await Promise.all([
-      prisma.account.findMany({ orderBy: { number: "asc" } }),
-      prisma.textKey.findMany({ orderBy: { key: "asc" } }),
+      prisma.account.findMany({
+        where: { familyId },
+        orderBy: { number: "asc" },
+      }),
+      prisma.textKey.findMany({ where: { familyId }, orderBy: { key: "asc" } }),
       prisma.transaction.groupBy({
         by: ["key"],
+        where: { familyId },
         _count: { _all: true },
         _sum: { amount: true },
         _max: { date: true, text: true },
       }),
-      prisma.category.findMany(),
+      prisma.category.findMany({ where: { familyId } }),
     ])
     const groupOf = new Map(categorySettings.map((c) => [c.name, c.group]))
     const keysPerCategory = new Map<string, number>()
@@ -562,7 +589,11 @@ export const updateTextKey = createServerFn({ method: "POST" })
     })
   )
   .handler(async ({ data: { key, ...values } }) => {
-    await prisma.textKey.update({ where: { key }, data: values })
+    const { familyId } = await requirePro()
+    await prisma.textKey.update({
+      where: { familyId_key: { familyId, key } },
+      data: values,
+    })
   })
 
 /** The family's own description of a transaction. Empty clears it. */
@@ -578,8 +609,9 @@ export const updateTransactionDescription = createServerFn({ method: "POST" })
     })
   )
   .handler(async ({ data }) => {
+    const { familyId } = await requirePro()
     await prisma.transaction.update({
-      where: { id: data.id },
+      where: { id: data.id, familyId },
       data: { description: data.description },
     })
   })
@@ -587,8 +619,9 @@ export const updateTransactionDescription = createServerFn({ method: "POST" })
 export const updateAccount = createServerFn({ method: "POST" })
   .validator(z.object({ number: z.string().min(1), name: optionalText }))
   .handler(async ({ data }) => {
+    const { familyId } = await requirePro()
     await prisma.account.update({
-      where: { number: data.number },
+      where: { familyId_number: { familyId, number: data.number } },
       data: { name: data.name },
     })
   })
@@ -596,9 +629,10 @@ export const updateAccount = createServerFn({ method: "POST" })
 export const updateCategoryGroup = createServerFn({ method: "POST" })
   .validator(z.object({ name: z.string().trim().min(1), group: optionalText }))
   .handler(async ({ data }) => {
+    const { familyId } = await requirePro()
     await prisma.category.upsert({
-      where: { name: data.name },
-      create: { name: data.name, group: data.group },
+      where: { familyId_name: { familyId, name: data.name } },
+      create: { familyId, name: data.name, group: data.group },
       update: { group: data.group },
     })
   })

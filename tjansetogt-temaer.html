@@ -1,0 +1,670 @@
+<title>Tjansetogt Temaverdener</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Bungee&family=Nunito:wght@500;700;800;900&family=Righteous&display=swap">
+<style>
+/* Layout: world picker on top, then a game HUD, a scene card (the week as a level), the boss, crew as character cards, chores as quests, and badges. Each world is a fixed visual skin; doubloons stay gold everywhere. */
+:root{
+  --coin:#f5b820; --coin-dark:#a86c12; --coin-light:#ffe28a;
+  --body:'Nunito',system-ui,-apple-system,sans-serif;
+  --m-c:#f5b820; --m-a:#e2559b; --m-j:#ef4848;
+  color-scheme:light;
+}
+/* ---------- TRAKTOR ---------- */
+body[data-skin="traktor"]{
+  --bg:#efe6cc; --panel:#fffaf0; --panel2:#f6edd3; --ink:#2b2418; --muted:#6e624a;
+  --accent:#c8372d; --accent2:#3f7d2a; --line:#d6c597; --hud:#2f5d22; --hud-ink:#fff6dc;
+  --display:'Bungee',Impact,system-ui,sans-serif; --r:12px;
+  --panel-border:3px solid #cdb987; --panel-shadow:0 4px 0 #b8a271;
+  color-scheme:light;
+  background-image:repeating-linear-gradient(90deg,rgba(120,90,40,.05) 0 2px,transparent 2px 46px);
+}
+/* ---------- SPINDELHELT ---------- */
+body[data-skin="spider"]{
+  --bg:#0c0f2e; --panel:#171c52; --panel2:#20276a; --ink:#f4f5ff; --muted:#aab0e0;
+  --accent:#e8263b; --accent2:#3b76ff; --line:#323b86; --hud:#e8263b; --hud-ink:#fff;
+  --display:'Bangers',Impact,system-ui,sans-serif; --r:6px;
+  --panel-border:3px solid #05061a; --panel-shadow:6px 6px 0 #05061a;
+  color-scheme:dark;
+  background-image:radial-gradient(rgba(255,255,255,.06) 1.2px,transparent 1.4px);
+  background-size:14px 14px;
+}
+/* ---------- WAKEBOARD ---------- */
+body[data-skin="wake"]{
+  --bg:#e6f7f5; --panel:#ffffff; --panel2:#f0fbfa; --ink:#063b45; --muted:#4c7a82;
+  --accent:#ff6b3d; --accent2:#0aa6b5; --line:#bde6e3; --hud:#063b45; --hud-ink:#eafffd;
+  --display:'Righteous',system-ui,sans-serif; --r:22px;
+  --panel-border:1px solid #c9ecea; --panel-shadow:0 10px 30px -12px rgba(6,59,69,.25);
+  color-scheme:light;
+  background-image:radial-gradient(circle at 10% -10%,#c3f0ec 0,transparent 45%),radial-gradient(circle at 100% 0,#ffe3d3 0,transparent 40%);
+}
+*{box-sizing:border-box}
+body{background-color:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;transition:background-color .3s}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--accent2);outline-offset:2px}
+.wrap{max-width:1100px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 60px;display:flex;flex-direction:column;gap:22px}
+h1,h2,h3,.disp{font-family:var(--display);font-weight:400;letter-spacing:.01em;margin:0;text-wrap:balance}
+.coin{width:1.05em;height:1.05em;vertical-align:-.16em;flex:none}
+.num{font-variant-numeric:tabular-nums}
+
+/* top bar / world picker */
+.topbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px}
+.crumb{color:var(--muted);font-weight:700;font-size:13px;letter-spacing:.04em}
+.crumb b{color:var(--ink)}
+.picker{display:flex;gap:8px;flex-wrap:wrap;background:var(--panel);border:var(--panel-border);box-shadow:var(--panel-shadow);border-radius:calc(var(--r) + 4px);padding:6px}
+.picker button{display:flex;align-items:center;gap:8px;border:0;background:transparent;padding:8px 14px;border-radius:var(--r);font-weight:800;color:var(--muted)}
+.picker button[aria-pressed="true"]{background:var(--hud);color:var(--hud-ink)}
+.picker .pi{font-size:18px}
+.lead{color:var(--muted);max-width:68ch;margin:-8px 0 0}
+
+/* HUD */
+.hud{display:grid;grid-template-columns:auto 1fr auto auto;gap:18px;align-items:center;background:var(--hud);color:var(--hud-ink);border-radius:var(--r);padding:12px 18px;border:var(--panel-border);box-shadow:var(--panel-shadow)}
+.lvl{display:grid;place-items:center;width:54px;height:54px;border-radius:50%;background:var(--coin);color:#3b2400;font-family:var(--display);font-size:22px;box-shadow:inset 0 -4px 0 var(--coin-dark),0 0 0 3px rgba(255,255,255,.35)}
+.lvl small{display:block;font-family:var(--body);font-weight:900;font-size:9px;letter-spacing:.1em;margin-bottom:-14px}
+.xp{min-width:0}
+.xp-top{display:flex;justify-content:space-between;gap:10px;font-weight:800;font-size:13px;letter-spacing:.03em}
+.xp-bar{height:14px;border-radius:99px;background:rgba(0,0,0,.28);margin-top:6px;overflow:hidden}
+.xp-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--coin-light),var(--coin));border-radius:inherit;transition:width .8s cubic-bezier(.2,.9,.3,1.2)}
+.hud-chip{display:flex;align-items:center;gap:8px;font-weight:900;font-size:18px;white-space:nowrap}
+.hud-chip span{font-size:11px;font-weight:800;opacity:.8;letter-spacing:.06em;display:block;line-height:1}
+.hud-chip .big{font-family:var(--display);font-size:22px;line-height:1}
+
+/* scene card */
+.stage{position:relative;border-radius:calc(var(--r) + 8px);overflow:hidden;color:#fff;border:var(--panel-border);box-shadow:var(--panel-shadow)}
+.stage-head{position:relative;z-index:3;padding:26px 28px 8px;display:flex;flex-direction:column;gap:8px}
+.eyebrow{font-weight:900;font-size:13px;letter-spacing:.22em;opacity:.9}
+.stage h1{font-size:clamp(30px,5vw,52px);line-height:1}
+.stage-sub{max-width:62ch;opacity:.92;font-weight:600}
+.days{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.day{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:900;background:rgba(255,255,255,.14);border:2px solid rgba(255,255,255,.25);position:relative}
+.day.past{opacity:.5}
+.day.today{background:var(--coin);color:#3b2400;border-color:#fff;transform:scale(1.12);box-shadow:0 0 0 4px rgba(245,184,32,.35)}
+.day .tick{position:absolute;right:-4px;bottom:-4px;font-size:13px;background:#2fbf71;color:#fff;border-radius:50%;width:18px;height:18px;display:grid;place-items:center;line-height:1}
+.scene{position:relative;height:210px;z-index:2;--p:0}
+.mover{position:absolute;left:calc(3% + var(--p) * 72%);transition:left 1.2s cubic-bezier(.3,1.3,.5,1);z-index:4}
+.goal{position:absolute;right:2%;z-index:3}
+.chest-lid{transform-origin:12px 10px;transition:transform .6s}
+.open .chest-lid{transform:rotate(-38deg) translate(-2px,-4px)}
+.chest-glow{opacity:0;transition:opacity .6s}
+.open .chest-glow{opacity:1;animation:pulse 1.4s infinite}
+.goal-tag{position:absolute;right:0;top:-26px;white-space:nowrap;font-weight:900;font-size:12px;letter-spacing:.06em;background:rgba(0,0,0,.45);padding:3px 9px;border-radius:99px}
+.stage-foot{position:relative;z-index:3;padding:14px 28px 24px;display:flex;flex-direction:column;gap:14px}
+.track{height:18px;border-radius:99px;background:rgba(0,0,0,.3);display:flex;overflow:hidden;border:2px solid rgba(255,255,255,.2)}
+.track i{display:block;height:100%;transition:width .9s}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-weight:800;font-size:13px}
+.legend b{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.tile{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:var(--r);padding:14px;text-align:center}
+.tile .disp{font-size:32px;line-height:1;display:flex;justify-content:center;align-items:center;gap:8px}
+.tile small{display:block;font-weight:900;letter-spacing:.1em;font-size:11px;margin-top:6px;opacity:.85}
+.plunder{position:absolute;inset:auto 0 46% 0;text-align:center;z-index:6;font-family:var(--display);font-size:clamp(30px,6vw,56px);color:var(--coin);text-shadow:0 3px 0 #6b3d00,0 0 24px rgba(255,200,40,.8);pointer-events:none;animation:pop .7s cubic-bezier(.2,1.6,.4,1) both}
+
+/* themed scene backgrounds */
+[data-skin="traktor"] .stage{background:linear-gradient(#8fd0f2 0,#cdebf7 46%,#e9d9a3 100%)}
+[data-skin="traktor"] .stage-head,[data-skin="traktor"] .stage-foot{color:#2b2418}
+[data-skin="traktor"] .stage-foot{background:#5b3b1f;color:#fff6dc}
+[data-skin="traktor"] .day{background:rgba(255,255,255,.55);border-color:rgba(43,36,24,.18);color:#2b2418}
+[data-skin="traktor"] .tile{background:rgba(255,246,220,.1);border-color:rgba(255,246,220,.2)}
+[data-skin="spider"] .stage{background:linear-gradient(#090b25 0,#1b1f63 55%,#3a1f5c 100%)}
+[data-skin="wake"] .stage{background:linear-gradient(#ff9a62 0,#ffc58f 30%,#9fe3e8 62%,#18a3b6 100%)}
+[data-skin="wake"] .stage-head{color:#3a1607}
+[data-skin="wake"] .day{background:rgba(255,255,255,.4);border-color:rgba(58,22,7,.15);color:#3a1607}
+[data-skin="wake"] .stage-foot{background:linear-gradient(#0a8ea0,#066877)}
+
+/* traktor scene pieces */
+.sun{position:absolute;border-radius:50%}
+.hill{position:absolute;bottom:52px;border-radius:50% 50% 0 0}
+.field{position:absolute;left:0;right:0;bottom:0;height:64px;background:repeating-linear-gradient(90deg,#c9a94f 0 14px,#b8963f 14px 18px)}
+.plowed{position:absolute;left:0;bottom:0;height:64px;width:calc(3% + var(--p) * 72% + 40px);background:repeating-linear-gradient(90deg,#6b4423 0 10px,#55341a 10px 16px);transition:width 1.2s cubic-bezier(.3,1.3,.5,1)}
+.cloud{position:absolute;background:#fff;border-radius:99px;opacity:.9;animation:drift 40s linear infinite}
+.cloud::before,.cloud::after{content:"";position:absolute;background:#fff;border-radius:50%}
+.cloud::before{width:44%;height:160%;left:16%;bottom:20%}
+.cloud::after{width:34%;height:130%;left:48%;bottom:30%}
+.wheel{transform-box:fill-box;transform-origin:center;animation:spin 1.2s linear infinite}
+.puff{animation:puff 1.6s ease-out infinite;transform-box:fill-box;transform-origin:center}
+.puff:nth-child(2){animation-delay:.55s}.puff:nth-child(3){animation-delay:1.1s}
+.bounce{animation:bounce .45s ease-in-out infinite alternate}
+
+/* spider scene pieces */
+.bldg{position:absolute;bottom:0;background:#0a0c24;background-image:repeating-linear-gradient(0deg,transparent 0 10px,rgba(255,220,120,.35) 10px 14px),repeating-linear-gradient(90deg,#0a0c24 0 8px,transparent 8px 14px);background-blend-mode:normal}
+.moon{position:absolute;right:16%;top:10px;width:64px;height:64px;border-radius:50%;background:#fff6d6;box-shadow:0 0 40px rgba(255,240,190,.6)}
+.swing{transform-origin:50% 0;animation:swing 2.2s ease-in-out infinite}
+.webweb{position:absolute;left:0;top:0;width:120px;height:120px;opacity:.35}
+.beacon{animation:pulse 1.2s infinite}
+.comic-pow{position:absolute;font-family:'Bangers',Impact,sans-serif;font-size:28px;color:#ffe14a;-webkit-text-stroke:1.5px #05061a;transform:rotate(-12deg);z-index:5;pointer-events:none;animation:pop .5s cubic-bezier(.2,1.6,.4,1) both}
+
+/* wake scene pieces */
+.water{position:absolute;left:0;right:0;bottom:0;height:92px;background:repeating-radial-gradient(ellipse 40px 8px at 20px 6px,rgba(255,255,255,.35) 0 2px,transparent 3px 14px),linear-gradient(#25b9c9,#0a8ea0);background-size:60px 22px,100% 100%;animation:waves 3s linear infinite}
+.trail{position:absolute;bottom:34px;left:0;height:22px;width:calc(3% + var(--p) * 72% + 10px);background:linear-gradient(90deg,transparent,rgba(255,255,255,.75));clip-path:polygon(0 45%,100% 0,100% 100%,0 55%);transition:width 1.2s cubic-bezier(.3,1.3,.5,1)}
+.bob{animation:bob 1.4s ease-in-out infinite}
+.gull{position:absolute;font-size:14px;color:#3a1607;animation:drift 30s linear infinite}
+
+/* boss */
+.boss{display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center;background:var(--panel);border:var(--panel-border);box-shadow:var(--panel-shadow);border-radius:var(--r);padding:18px 20px}
+.boss-face{width:78px;height:78px;border-radius:var(--r);display:grid;place-items:center;font-size:44px;background:var(--panel2);border:2px solid var(--line);position:relative}
+.boss-face.hit{animation:shake .4s}
+.boss.defeated .boss-face{filter:grayscale(1);opacity:.6}
+.boss-name{font-size:22px}
+.boss-meta{color:var(--muted);font-weight:700;font-size:13px}
+.hp{display:flex;gap:6px;margin-top:10px}
+.hp i{flex:1;height:14px;border-radius:4px;background:var(--accent);box-shadow:inset 0 -3px 0 rgba(0,0,0,.2);transition:background .4s,transform .4s}
+.hp i.gone{background:var(--line);box-shadow:none;transform:scaleY(.6)}
+.countdown{text-align:center;background:var(--panel2);border-radius:var(--r);padding:10px 14px;border:2px dashed var(--line)}
+.countdown .disp{font-size:24px;color:var(--accent)}
+.countdown small{display:block;font-weight:900;font-size:10px;letter-spacing:.12em;color:var(--muted)}
+
+/* section headings */
+.sec-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.sec-h h2{font-size:26px}
+.sec-h span{color:var(--muted);font-weight:800}
+
+/* crew */
+.crew{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.hero{position:relative;background:var(--panel);border:var(--panel-border);box-shadow:var(--panel-shadow);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.hero.top{outline:3px solid var(--coin);outline-offset:-3px}
+.hero-row{display:flex;gap:12px;align-items:center}
+.ava{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-size:30px;flex:none;border:3px solid #fff;box-shadow:0 0 0 3px var(--mc);background:var(--mc);position:relative}
+.ava .lv{position:absolute;bottom:-6px;right:-8px;background:var(--ink);color:var(--panel);font-family:var(--display);font-size:11px;padding:2px 6px;border-radius:99px;border:2px solid var(--panel)}
+.crown{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:20px}
+.hero-name{font-size:20px;line-height:1}
+.hero-title{font-weight:800;font-size:12px;letter-spacing:.06em;color:var(--accent);text-transform:uppercase}
+.hero-gain{margin-left:auto;text-align:right}
+.hero-gain .disp{font-size:26px;color:var(--coin-dark);line-height:1}
+[data-skin="spider"] .hero-gain .disp{color:var(--coin)}
+.hero-gain small{display:block;font-weight:900;font-size:10px;letter-spacing:.1em;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--panel2);border-radius:calc(var(--r) - 4px);padding:6px 8px;text-align:center}
+.stat b{display:flex;align-items:center;justify-content:center;gap:4px;font-size:16px}
+.stat span{font-size:10px;font-weight:900;letter-spacing:.08em;color:var(--muted)}
+.mini-xp{height:8px;border-radius:99px;background:var(--panel2);overflow:hidden}
+.mini-xp i{display:block;height:100%;background:var(--mc);transition:width .8s}
+.mini-xp-l{display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:var(--muted);margin-top:-6px}
+
+/* quests */
+.quests{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.quest{position:relative;background:var(--panel);border:var(--panel-border);box-shadow:var(--panel-shadow);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.quest.done{background:var(--panel2)}
+.quest.done .q-name{text-decoration:line-through;opacity:.6}
+.q-top{display:flex;gap:12px;align-items:flex-start}
+.q-ico{width:56px;height:56px;border-radius:calc(var(--r) - 2px);display:grid;place-items:center;font-size:28px;background:var(--panel2);border:2px solid var(--line);flex:none}
+.q-name{font-size:18px;line-height:1.15}
+.q-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.pill{display:inline-flex;align-items:center;gap:5px;font-weight:900;font-size:13px;padding:3px 10px;border-radius:99px}
+.pill.gold{background:linear-gradient(var(--coin-light),var(--coin));color:#3b2400;box-shadow:inset 0 -2px 0 var(--coin-dark)}
+.rar{font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.rar.r0{background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
+.rar.r1{background:#2f6bff;color:#fff}
+.rar.r2{background:linear-gradient(90deg,#a743ff,#ff5fa2);color:#fff}
+.segs{display:flex;gap:4px}
+.segs i{flex:1;height:10px;border-radius:3px;background:var(--line)}
+.segs i.on{background:var(--accent2)}
+.q-act{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.q-act span{font-weight:800;font-size:12px;color:var(--muted);margin-right:2px}
+.who{display:flex;align-items:center;gap:6px;border:2px solid var(--line);background:var(--panel2);border-radius:99px;padding:4px 12px 4px 4px;font-weight:900}
+.who em{font-style:normal;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--mc);font-size:16px}
+.who:hover{border-color:var(--accent);transform:translateY(-2px)}
+.who:active{transform:translateY(1px)}
+.stamp{position:absolute;right:14px;top:14px;transform:rotate(-12deg);border:4px solid var(--accent);color:var(--accent);font-family:var(--display);font-size:20px;padding:4px 12px;border-radius:10px;display:flex;align-items:center;gap:8px;background:var(--panel);animation:stamp .4s cubic-bezier(.2,1.6,.4,1) both}
+.stamp em{font-style:normal;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--mc);font-size:16px}
+
+/* badges */
+.badges{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.badge{background:var(--panel);border:var(--panel-border);box-shadow:var(--panel-shadow);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px}
+.badge .b-ico{width:60px;height:60px;border-radius:50%;display:grid;place-items:center;font-size:28px;background:radial-gradient(circle at 35% 30%,var(--coin-light),var(--coin) 60%,var(--coin-dark));box-shadow:0 0 0 4px var(--panel2)}
+.badge.locked .b-ico{background:var(--panel2);filter:grayscale(1);opacity:.55}
+.badge b{font-size:14px}
+.badge small{color:var(--muted);font-weight:700;font-size:12px}
+.badge.locked b{opacity:.6}
+
+.foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-weight:700;font-size:13px}
+.reset{border:2px solid var(--line);background:var(--panel);border-radius:99px;padding:6px 14px;font-weight:800}
+
+/* toast + coins */
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,140%);background:var(--hud);color:var(--hud-ink);padding:12px 20px;border-radius:var(--r);font-weight:900;display:flex;gap:10px;align-items:center;z-index:50;transition:transform .4s cubic-bezier(.2,1.4,.4,1);box-shadow:0 10px 30px rgba(0,0,0,.3);max-width:calc(100% - 32px)}
+.toast.show{transform:translate(-50%,0)}
+.fly{position:fixed;z-index:60;width:26px;height:26px;pointer-events:none;animation:fly .9s cubic-bezier(.3,.7,.4,1) forwards}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes puff{0%{opacity:.8;transform:translate(0,0) scale(.5)}100%{opacity:0;transform:translate(-10px,-26px) scale(1.6)}}
+@keyframes bounce{to{transform:translateY(-2px)}}
+@keyframes drift{from{transform:translateX(0)}to{transform:translateX(-140px)}}
+@keyframes swing{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-4px) rotate(1.5deg)}}
+@keyframes waves{to{background-position:-60px 0,0 0}}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes pop{from{transform:scale(.3) rotate(-12deg);opacity:0}}
+@keyframes stamp{from{transform:scale(2.2) rotate(-12deg);opacity:0}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px) rotate(-4deg)}75%{transform:translateX(8px) rotate(4deg)}}
+@keyframes fly{0%{transform:translate(0,0) scale(1)}100%{transform:translate(var(--dx),var(--dy)) scale(.5);opacity:.2}}
+
+@media (max-width:860px){
+  .crew{grid-template-columns:1fr 1fr}
+  .badges{grid-template-columns:1fr 1fr}
+}
+@media (max-width:640px){
+  .hud{grid-template-columns:auto 1fr;row-gap:12px}
+  .hud-chip{grid-column:span 1}
+  .crew,.quests{grid-template-columns:1fr}
+  .boss{grid-template-columns:auto 1fr}
+  .countdown{grid-column:1 / -1}
+  .tiles{gap:8px}
+  .tile .disp{font-size:24px}
+  .stage-head,.stage-foot{padding-left:18px;padding-right:18px}
+  .scene{height:180px}
+  .day{width:36px;height:36px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="coin" viewBox="0 0 32 32">
+      <circle cx="16" cy="16" r="15" fill="#a86c12"/>
+      <circle cx="16" cy="15" r="14" fill="#f5b820"/>
+      <circle cx="16" cy="15" r="10.5" fill="#ffcf3f" stroke="#c98a14" stroke-width="1.5"/>
+      <path d="M16 8.6l1.9 4 4.3.5-3.2 2.9.9 4.3-3.9-2.2-3.9 2.2.9-4.3-3.2-2.9 4.3-.5z" fill="#c4560f"/>
+    </symbol>
+    <symbol id="chest" viewBox="0 0 64 56">
+      <g class="chest-glow"><circle cx="32" cy="22" r="26" fill="#ffd84a" opacity=".45"/></g>
+      <rect x="6" y="24" width="52" height="28" rx="4" fill="#8a4b1c" stroke="#3d1e07" stroke-width="2.5"/>
+      <rect x="6" y="34" width="52" height="5" fill="#f5b820" stroke="#3d1e07" stroke-width="1.5"/>
+      <g class="chest-lid"><path d="M6 26 Q6 8 32 8 Q58 8 58 26 Z" fill="#a35a22" stroke="#3d1e07" stroke-width="2.5"/>
+      <path d="M8 22 H56" stroke="#f5b820" stroke-width="4"/></g>
+      <rect x="27" y="30" width="10" height="12" rx="2" fill="#ffd84a" stroke="#3d1e07" stroke-width="2"/>
+      <circle cx="32" cy="35" r="1.8" fill="#3d1e07"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="crumb">Tjanser › <b>Ugens togt</b></div>
+    <div class="picker" role="group" aria-label="Vælg verden">
+      <button id="w-traktor" data-w="traktor"><span class="pi">🚜</span>Traktor</button>
+      <button id="w-spider" data-w="spider"><span class="pi">🕸️</span>Spindelhelt</button>
+      <button id="w-wake" data-w="wake"><span class="pi">🏄</span>Wakeboard</button>
+    </div>
+  </div>
+  <p class="lead">Tre bud på et mere spilagtigt "Ugens togt". Skift verden øverst, og tryk på et ansigt under en tjans for at klare den. Dublonerne og skattekisten er de samme i alle verdener.</p>
+
+  <section class="hud" aria-label="Holdets status">
+    <div class="lvl"><div><small id="hud-lvl-l">HOLD</small><span id="hud-lvl">5</span></div></div>
+    <div class="xp">
+      <div class="xp-top"><span id="hud-xp-name">Holdets niveau</span><span class="num" id="hud-xp-num"></span></div>
+      <div class="xp-bar"><i id="hud-xp"></i></div>
+    </div>
+    <div class="hud-chip"><span style="font-size:24px">🔥</span><div><div class="big num" id="hud-streak">1</div><span>DAGE I TRÆK</span></div></div>
+    <div class="hud-chip" id="wallet"><svg class="coin" style="width:30px;height:30px"><use href="#coin"/></svg><div><div class="big num" id="hud-coins">0</div><span>DUBLONER I ALT</span></div></div>
+  </section>
+
+  <section class="stage" id="stage">
+    <div class="stage-head">
+      <div class="eyebrow" id="eyebrow"></div>
+      <h1 id="headline"></h1>
+      <div class="stage-sub" id="sub"></div>
+      <div class="days" id="days"></div>
+    </div>
+    <div class="scene" id="scene"></div>
+    <div class="stage-foot">
+      <div class="track" id="track"></div>
+      <div class="legend" id="legend"></div>
+      <div class="tiles">
+        <div class="tile"><div class="disp num" id="t-done"></div><small id="t-done-l">TJANSER KLARET</small></div>
+        <div class="tile"><div class="disp num"><svg class="coin"><use href="#coin"/></svg><span id="t-left"></span></div><small>TIL FRI PLYNDRING</small></div>
+        <div class="tile"><div class="disp num">⏳ <span id="t-days"></span></div><small>DAGE TILBAGE</small></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="boss" id="boss">
+    <div class="boss-face" id="boss-face"></div>
+    <div>
+      <div class="eyebrow" style="color:var(--accent)" id="boss-eye">UGENS BOSS</div>
+      <h3 class="boss-name" id="boss-name"></h3>
+      <div class="boss-meta" id="boss-meta"></div>
+      <div class="hp" id="hp"></div>
+    </div>
+    <div class="countdown"><div class="disp num" id="cd"></div><small id="cd-l">TIL ANGREBET</small></div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:12px">
+    <div class="sec-h"><h2 id="crew-h"></h2><span id="crew-s"></span></div>
+    <div class="crew" id="crew"></div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:12px">
+    <div class="sec-h"><h2 id="q-h"></h2><span id="q-s"></span></div>
+    <div class="quests" id="quests"></div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:12px">
+    <div class="sec-h"><h2 id="b-h"></h2><span>Låses op i løbet af ugen</span></div>
+    <div class="badges" id="badges"></div>
+  </section>
+
+  <div class="foot">
+    <span>Eksempeldata fra uge 48. Tjanserne "Tøm opvaskeren" og "Bær skrald ud" er opfundet til demoen.</span>
+    <button class="reset" id="reset">Nulstil demo</button>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const COIN = '<svg class="coin"><use href="#coin"/></svg>';
+const CHEST = (w=64)=>`<svg width="${w}" height="${w*56/64}" viewBox="0 0 64 56"><use href="#chest"/></svg>`;
+
+const START = {
+  crew:[
+    {id:'C',name:'C',emoji:'🐙',color:'var(--m-c)',xp:1650,purse:400,gain:500,count:1},
+    {id:'A',name:'A',emoji:'🐢',color:'var(--m-a)',xp:900,purse:0,gain:0,count:0},
+    {id:'J',name:'J',emoji:'🐬',color:'var(--m-j)',xp:1180,purse:0,gain:0,count:0},
+  ],
+  chores:[
+    {id:'bad',name:'Rengør badeværelset',icon:'🛁',reward:100,steps:5,done:0,by:null},
+    {id:'gulv',name:'Vask gulvene',icon:'🧹',reward:500,steps:1,done:1,by:'C'},
+    {id:'opv',name:'Tøm opvaskeren',icon:'🍽️',reward:20,steps:1,done:0,by:null},
+    {id:'skrald',name:'Bær skrald ud',icon:'🗑️',reward:20,steps:1,done:0,by:null},
+  ],
+  doneToday:false
+};
+let S = JSON.parse(JSON.stringify(START));
+
+const W = {
+  traktor:{
+    eyebrow:'UGE 48 · 23.–29. NOV. · HØSTUGEN',
+    headline:'Fuld gas på marken!',
+    sub:'Hver klaret tjans pløjer et stykke mark. Når traktoren når laden, åbner skattekisten. Ligger der stadig en tjans søndag aften, æder vildsvinet 10% af alles dubloner.',
+    goal:'SKATTELADEN', crewH:'Gårdens mandskab', qH:'Markarbejde', bH:'Rosetter',
+    doneL:'MARKER PLØJET', teamLvl:'Gårdens niveau',
+    boss:{face:'🐗',name:'Vildsvinet Bøvl',meta:'Roder i marken søndag kl. 20. Hver klaret tjans lukker et hul i hegnet.'},
+    titles:['Markhjælper','Traktorfører','Storbonde'], topTitle:'Formand',
+    rarity:['Hverdag','God høst','Guldhøst'], stamp:'HØSTET!', pow:['BRUM!','VROOM!','HØST!'],
+    badges:[['🌱','Første fure','Klar en tjans'],['🐓','Tidligt op','3 dage i træk'],['🌾','Guldhøst','Klar en guldtjans'],['🏚️','Fuld lade','Klar alle tjanser']],
+    toast:n=>`${n} pløjede et stykke mark!`
+  },
+  spider:{
+    eyebrow:'UGE 48 · 23.–29. NOV. · NATTEVAGTEN',
+    headline:'Byen kalder!',
+    sub:'Hver klaret tjans er en redning. Sving fra tag til tag, til du når tårnet med skattekisten. Står der en tjans tilbage søndag aften, stjæler Rodemesteren 10% af alles dubloner.',
+    goal:'SKATTETÅRNET', crewH:'Heltene', qH:'Missioner', bH:'Heltemærker',
+    doneL:'REDNINGER', teamLvl:'Heltenes niveau',
+    boss:{face:'👾',name:'Rodemesteren',meta:'Slår til søndag kl. 20. Hver mission I klarer, tager et liv fra ham.'},
+    titles:['Rookie','Nabolagshelt','Byens helt'], topTitle:'Holdleder',
+    rarity:['Gadepatrulje','Farlig','Superskurk'], stamp:'REDDET!', pow:['THWIP!','POW!','ZAP!'],
+    badges:[['🕸️','Første redning','Klar en mission'],['🌙','Tre nætter','3 dage i træk'],['💥','Superskurk fanget','Klar en guldmission'],['🏙️','Byen er sikker','Klar alle missioner']],
+    toast:n=>`${n} reddede dagen!`
+  },
+  wake:{
+    eyebrow:'UGE 48 · 23.–29. NOV. · SÆSONENS RUN',
+    headline:'Hold linen stram!',
+    sub:'Hver klaret tjans trækker dig længere over søen. Ram rampen ved øen, og skattekisten er jeres. Er der en tjans tilbage søndag aften, skyller stormen 10% af alles dubloner væk.',
+    goal:'SKATTEØEN', crewH:'Crewet', qH:'Runs', bH:'Tricks låst op',
+    doneL:'RUNS LANDET', teamLvl:'Crewets niveau',
+    boss:{face:'⛈️',name:'Søndagsstormen',meta:'Rammer søen søndag kl. 20. Hver landet run skubber skyerne væk.'},
+    titles:['Grom','Rider','Pro'], topTitle:'Kaptajn',
+    rarity:['Chill','Big air','Legendarisk'], stamp:'LANDET!', pow:['SPLASH!','WHOOSH!','SEND IT!'],
+    badges:[['🤙','Ollie','Land dit første run'],['☀️','Tre dage på vandet','3 dage i træk'],['🌀','Backroll','Land et guld-run'],['🏆','Perfekt sæson','Land alle runs']],
+    toast:n=>`${n} landede et run!`
+  }
+};
+
+const LV = 250;
+const lvlOf = xp => Math.floor(xp/LV)+1;
+const $ = id => document.getElementById(id);
+let world = 'traktor';
+try{ const s = localStorage.getItem('togt-world'); if(W[s]) world = s; }catch(e){}
+
+/* ---------- scenes ---------- */
+function sceneHTML(w, open){
+  const chest = `<div class="${open?'open':''}" style="display:inline-block">${CHEST(52)}</div>`;
+  if(w==='traktor') return `
+    <div class="sun" style="right:18%;top:-6px;width:70px;height:70px;background:#ffe27a;box-shadow:0 0 40px #ffe27a"></div>
+    <div class="cloud" style="left:30%;top:20px;width:90px;height:24px"></div>
+    <div class="cloud" style="left:62%;top:44px;width:70px;height:20px;animation-duration:55s"></div>
+    <div class="hill" style="left:-10%;width:60%;height:110px;background:#7fb04a"></div>
+    <div class="hill" style="left:35%;width:70%;height:90px;background:#6aa03b"></div>
+    <div class="field"></div><div class="plowed"></div>
+    <div class="goal" style="bottom:40px">
+      <div class="goal-tag">${W.traktor.goal}</div>
+      <svg width="120" height="110" viewBox="0 0 120 110">
+        <path d="M10 50 L60 14 L110 50 V108 H10Z" fill="#b8302a" stroke="#5a1410" stroke-width="3"/>
+        <path d="M4 52 L60 10 L116 52" fill="none" stroke="#3b2a22" stroke-width="8" stroke-linecap="round"/>
+        <rect x="38" y="62" width="44" height="46" fill="#8e221d" stroke="#fff" stroke-width="3"/>
+        <path d="M38 62 L82 108 M82 62 L38 108" stroke="#fff" stroke-width="3"/>
+        <rect x="52" y="30" width="16" height="14" fill="#fff6dc" stroke="#5a1410" stroke-width="2"/>
+      </svg>
+      <div style="position:absolute;left:-46px;bottom:-6px">${chest}</div>
+    </div>
+    <div class="mover" style="bottom:30px">
+      <svg width="130" height="100" viewBox="0 0 130 100" class="bounce" aria-label="Traktor">
+        <g fill="#cfcfcf"><circle class="puff" cx="88" cy="16" r="5"/><circle class="puff" cx="88" cy="16" r="5"/><circle class="puff" cx="88" cy="16" r="5"/></g>
+        <rect x="85" y="20" width="6" height="26" rx="2" fill="#333"/>
+        <rect x="18" y="14" width="40" height="40" rx="4" fill="#c8372d" stroke="#5a1410" stroke-width="2.5"/>
+        <rect x="24" y="20" width="28" height="18" rx="2" fill="#bfe6ff" stroke="#5a1410" stroke-width="2"/>
+        <path d="M54 42 H112 Q118 42 118 50 V64 H54Z" fill="#c8372d" stroke="#5a1410" stroke-width="2.5"/>
+        <rect x="100" y="46" width="14" height="6" fill="#f5b820"/>
+        <g class="wheel"><circle cx="38" cy="72" r="24" fill="#1d1d1d"/><circle cx="38" cy="72" r="10" fill="#f5b820"/>
+          <path d="M38 48 V58 M38 86 V96 M14 72 H24 M52 72 H62" stroke="#444" stroke-width="5"/></g>
+        <g class="wheel"><circle cx="104" cy="80" r="15" fill="#1d1d1d"/><circle cx="104" cy="80" r="6" fill="#f5b820"/>
+          <path d="M104 65 V71 M104 89 V95" stroke="#444" stroke-width="4"/></g>
+      </svg>
+    </div>`;
+  if(w==='spider'){
+    const hs=[70,120,90,150,80,130,100,60,140,95,75,160,110];
+    let b=''; let x=0;
+    hs.forEach((h,i)=>{const wd=7+(i%3)*2; b+=`<div class="bldg" style="left:${x}%;width:${wd}%;height:${h}px;opacity:${i%2?.9:1}"></div>`; x+=wd-1;});
+    return `
+      <div class="moon"></div>
+      <svg class="webweb" viewBox="0 0 120 120"><g stroke="#fff" stroke-width="1" fill="none">
+        <path d="M0 0 L120 30 M0 0 L90 90 M0 0 L30 120"/><path d="M40 10 Q34 30 12 40 M70 18 Q60 52 22 70 M100 26 Q84 80 26 104"/></g></svg>
+      ${b}
+      <div class="goal" style="bottom:0;right:3%">
+        <div class="goal-tag" style="top:-30px">${W.spider.goal}</div>
+        <svg width="70" height="200" viewBox="0 0 70 200" style="display:block">
+          <circle class="beacon" cx="35" cy="8" r="6" fill="#e8263b"/>
+          <rect x="33" y="8" width="4" height="30" fill="#c6c9ee"/>
+          <path d="M14 60 L35 36 L56 60 V200 H14Z" fill="#05061a" stroke="#3b76ff" stroke-width="2"/>
+          <g fill="#ffd970" opacity=".8">${Array.from({length:12},(_,i)=>`<rect x="${i%2?38:22}" y="${70+Math.floor(i/2)*20}" width="10" height="8"/>`).join('')}</g>
+        </svg>
+        <div style="position:absolute;left:9px;top:20px">${chest}</div>
+      </div>
+      <div class="mover" style="top:0;height:100%">
+        <div class="swing" style="position:relative;width:70px;height:170px">
+          <svg width="70" height="170" viewBox="0 0 70 170" aria-label="Spindelhelt">
+            <line x1="35" y1="0" x2="40" y2="88" stroke="#fff" stroke-width="2"/>
+            <g transform="translate(14 82)">
+              <path d="M26 6 L24 -2" stroke="#e8263b" stroke-width="6" stroke-linecap="round"/>
+              <circle cx="20" cy="14" r="10" fill="#e8263b" stroke="#05061a" stroke-width="2"/>
+              <path d="M12 12 Q20 8 28 12 L27 16 Q20 13 13 16Z" fill="#fff"/>
+              <path d="M12 24 H28 L30 48 H10Z" fill="#3b76ff" stroke="#05061a" stroke-width="2"/>
+              <path d="M16 24 H24 L25 48 H15Z" fill="#e8263b"/>
+              <path d="M20 30 l-4 3 m4 -3 l4 3 m-4 -3 v8 m0 -2 l-4 4 m4 -4 l4 4" stroke="#05061a" stroke-width="1.4"/>
+              <path d="M12 28 L2 40" stroke="#e8263b" stroke-width="6" stroke-linecap="round"/>
+              <path d="M14 48 L8 66 M26 48 L36 62" stroke="#3b76ff" stroke-width="7" stroke-linecap="round"/>
+            </g>
+          </svg>
+        </div>
+      </div>`;
+  }
+  return `
+    <div class="sun" style="left:50%;top:18px;width:90px;height:90px;background:radial-gradient(#fff3c4,#ffd27a 60%,transparent 70%)"></div>
+    <div class="gull" style="left:40%;top:30px">︶ ︶</div>
+    <div class="gull" style="left:70%;top:60px;animation-duration:45s">︶</div>
+    <div class="water"></div><div class="trail"></div>
+    <div class="goal" style="bottom:22px">
+      <div class="goal-tag">${W.wake.goal}</div>
+      <svg width="170" height="120" viewBox="0 0 170 120">
+        <path d="M0 112 L46 70 L54 70 L54 112Z" fill="#f2f2f2" stroke="#063b45" stroke-width="3"/>
+        <ellipse cx="118" cy="108" rx="52" ry="14" fill="#f4d58d" stroke="#b8913f" stroke-width="2"/>
+        <path d="M122 104 Q118 70 128 40" stroke="#7a4b23" stroke-width="7" fill="none" stroke-linecap="round"/>
+        <g fill="#2fa65a"><path d="M128 40 Q104 28 92 46 Q112 38 128 42Z"/><path d="M128 40 Q150 22 166 38 Q146 34 128 42Z"/><path d="M128 40 Q120 14 136 6 Q130 24 130 40Z"/><path d="M128 40 Q154 46 160 64 Q142 48 128 42Z"/></g>
+      </svg>
+      <div style="position:absolute;right:30px;bottom:6px">${chest}</div>
+    </div>
+    <div class="mover" style="bottom:22px">
+      <svg width="220" height="90" viewBox="0 0 220 90" class="bob" aria-label="Wakeboarder bag båd">
+        <path d="M44 44 L150 52" stroke="#063b45" stroke-width="1.5"/>
+        <g transform="translate(130 36)">
+          <path d="M0 22 H80 Q90 22 84 36 H8Z" fill="#fff" stroke="#063b45" stroke-width="2.5"/>
+          <path d="M6 30 H82" stroke="#ff6b3d" stroke-width="4"/>
+          <path d="M30 22 L40 8 H54 L50 22" fill="#bfe6ff" stroke="#063b45" stroke-width="2"/>
+          <path d="M20 22 V4 H60" stroke="#063b45" stroke-width="3" fill="none"/>
+        </g>
+        <g transform="translate(14 22)">
+          <ellipse cx="22" cy="52" rx="26" ry="5" fill="#ff6b3d" stroke="#063b45" stroke-width="2" transform="rotate(-10 22 52)"/>
+          <circle cx="24" cy="6" r="7" fill="#f2c299" stroke="#063b45" stroke-width="2"/>
+          <path d="M18 2 Q24 -4 31 3" stroke="#ff6b3d" stroke-width="4" fill="none"/>
+          <path d="M24 13 L20 32" stroke="#0aa6b5" stroke-width="8" stroke-linecap="round"/>
+          <path d="M22 18 L32 22" stroke="#f2c299" stroke-width="4" stroke-linecap="round"/>
+          <path d="M20 32 L12 48 M20 32 L30 46" stroke="#063b45" stroke-width="6" stroke-linecap="round"/>
+        </g>
+        <path d="M4 74 q6 -10 14 -4 q6 -10 14 -2" stroke="#fff" stroke-width="3" fill="none" opacity=".9"/>
+      </svg>
+    </div>`;
+}
+
+/* ---------- render ---------- */
+function render(){
+  const T = W[world];
+  document.body.dataset.skin = world;
+  document.querySelectorAll('.picker button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.w===world));
+  const total = S.chores.length, done = S.chores.filter(c=>c.by).length;
+  const left = S.chores.filter(c=>!c.by).reduce((a,c)=>a+c.reward,0);
+  const open = done===total;
+
+  $('eyebrow').textContent = T.eyebrow;
+  $('headline').textContent = open ? 'Fri plyndring!' : T.headline;
+  $('sub').textContent = T.sub;
+  const days=['M','T','O','T','F','L','S'], today=1;
+  $('days').innerHTML = days.map((d,i)=>`<div class="day ${i<today?'past':''} ${i===today?'today':''}">${d}${(i===0)||(i===today&&S.doneToday)?'<span class="tick">✓</span>':''}</div>`).join('');
+
+  const scene=$('scene');
+  scene.innerHTML = sceneHTML(world, open) + (open?'<div class="plunder">FRI PLYNDRING!</div>':'');
+  requestAnimationFrame(()=>scene.style.setProperty('--p', done/total));
+
+  // progress track segmented by member
+  $('track').innerHTML = S.crew.map(m=>{const n=S.chores.filter(c=>c.by===m.id).length;return n?`<i style="width:${n/total*100}%;background:${m.color}"></i>`:''}).join('');
+  $('legend').innerHTML = S.crew.filter(m=>S.chores.some(c=>c.by===m.id)).map(m=>`<span><b style="background:${m.color}"></b>${m.name} · ${S.chores.filter(c=>c.by===m.id).length}</span>`).join('') || '<span>Ingen tjanser klaret endnu</span>';
+  $('t-done').textContent = `${done}/${total}`;
+  $('t-done-l').textContent = T.doneL;
+  $('t-left').textContent = left;
+  $('t-days').textContent = 6;
+
+  // HUD
+  const teamXp = S.crew.reduce((a,m)=>a+m.xp,0);
+  const tl = Math.floor(teamXp/1000)+1;
+  $('hud-lvl').textContent = tl;
+  $('hud-xp-name').textContent = T.teamLvl;
+  $('hud-xp-num').textContent = `${teamXp%1000} / 1000 XP`;
+  requestAnimationFrame(()=>$('hud-xp').style.width = (teamXp%1000)/10+'%');
+  $('hud-streak').textContent = S.doneToday?2:1;
+  $('hud-coins').textContent = S.crew.reduce((a,m)=>a+m.purse,0);
+
+  // boss
+  const B=T.boss, bossEl=$('boss');
+  bossEl.classList.toggle('defeated', open);
+  $('boss-face').textContent = B.face;
+  $('boss-name').textContent = open ? `${B.name} er besejret!` : B.name;
+  $('boss-meta').textContent = open ? 'Ingen dubloner går tabt i denne uge.' : B.meta;
+  $('hp').innerHTML = S.chores.map(c=>`<i class="${c.by?'gone':''}" title="${c.name}"></i>`).join('');
+  $('hp').setAttribute('aria-label', `${total-done} af ${total} liv tilbage`);
+
+  // crew
+  $('crew-h').textContent = T.crewH;
+  $('crew-s').textContent = `${S.crew.length} spillere`;
+  const best = Math.max(...S.crew.map(m=>m.gain));
+  $('crew').innerHTML = S.crew.map(m=>{
+    const lv=lvlOf(m.xp), title=T.titles[lv>=7?2:lv>=4?1:0], top=best>0&&m.gain===best;
+    return `<article class="hero ${top?'top':''}" style="--mc:${m.color}">
+      <div class="hero-row">
+        <div class="ava">${top?'<span class="crown">👑</span>':''}${m.emoji}<span class="lv">LV ${lv}</span></div>
+        <div><div class="hero-title">${top?T.topTitle+' · ':''}${title}</div><h3 class="hero-name">${m.name}</h3></div>
+        <div class="hero-gain"><div class="disp num">+${m.gain}</div><small>DETTE TOGT</small></div>
+      </div>
+      <div class="mini-xp"><i style="width:${(m.xp%LV)/LV*100}%"></i></div>
+      <div class="mini-xp-l"><span>XP</span><span class="num">${m.xp%LV}/${LV} til LV ${lv+1}</span></div>
+      <div class="stats">
+        <div class="stat"><b class="num">${m.count}</b><span>TJANSER</span></div>
+        <div class="stat"><b class="num">${COIN}${m.purse}</b><span>I PUNGEN</span></div>
+        <div class="stat"><b class="num">${m.xp}</b><span>XP I ALT</span></div>
+      </div>
+    </article>`}).join('');
+
+  // quests
+  $('q-h').textContent = T.qH;
+  $('q-s').textContent = `${total-done} tilbage`;
+  const sorted=[...S.chores].sort((a,b)=>(!!a.by)-(!!b.by));
+  $('quests').innerHTML = sorted.map(c=>{
+    const r = c.reward>=300?2:c.reward>=100?1:0;
+    const by = S.crew.find(m=>m.id===c.by);
+    return `<article class="quest ${by?'done':''}">
+      <div class="q-top"><div class="q-ico">${c.icon}</div>
+        <div><h3 class="q-name">${c.name}</h3>
+          <div class="q-tags"><span class="pill gold num">${COIN}${c.reward}</span><span class="pill rar r${r}">${T.rarity[r]}</span><span class="pill rar r0">+${c.reward} XP</span></div></div></div>
+      <div class="segs" aria-label="${c.done} af ${c.steps} trin">${Array.from({length:c.steps},(_,i)=>`<i class="${i<c.done?'on':''}"></i>`).join('')}</div>
+      ${by?`<div class="stamp" style="--mc:${by.color}"><em>${by.emoji}</em>${T.stamp}</div>`:
+       `<div class="q-act"><span>${c.steps>1?`Trin ${c.done}/${c.steps} · hvem tager næste?`:'Hvem klarede den?'}</span>${S.crew.map(m=>`<button class="who" style="--mc:${m.color}" data-c="${c.id}" data-m="${m.id}" aria-label="${m.name} klarede ${c.name}"><em>${m.emoji}</em>${m.name}</button>`).join('')}</div>`}
+    </article>`}).join('');
+
+  // badges
+  $('b-h').textContent = T.bH;
+  const earned=[done>0, S.doneToday&&false, S.chores.some(c=>c.by&&c.reward>=300), open];
+  $('badges').innerHTML = T.badges.map((b,i)=>`<div class="badge ${earned[i]?'':'locked'}"><div class="b-ico">${earned[i]?b[0]:'🔒'}</div><b>${b[1]}</b><small>${b[2]}</small></div>`).join('');
+}
+
+/* ---------- actions ---------- */
+function toast(html){const t=$('toast');t.innerHTML=html;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2400)}
+function burst(x,y,n){
+  const w=$('wallet').getBoundingClientRect();
+  for(let i=0;i<n;i++){
+    const s=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    s.setAttribute('class','fly'); s.innerHTML='<use href="#coin"/>';
+    s.style.left=(x-13+(Math.random()*40-20))+'px'; s.style.top=(y-13+(Math.random()*20-10))+'px';
+    s.style.setProperty('--dx',(w.left+15-x)+'px'); s.style.setProperty('--dy',(w.top+15-y)+'px');
+    s.style.animationDelay=(i*60)+'ms';
+    document.body.appendChild(s); setTimeout(()=>s.remove(),1000+i*60);
+  }
+}
+function pow(){
+  const T=W[world], sc=$('scene'), el=document.createElement('div');
+  el.className='comic-pow'; el.textContent=T.pow[Math.floor(Math.random()*T.pow.length)];
+  const mv=sc.querySelector('.mover'); const r=mv?mv.offsetLeft+60:100;
+  el.style.left=r+'px'; el.style.top='20px'; sc.appendChild(el); setTimeout(()=>el.remove(),1100);
+}
+document.addEventListener('click',e=>{
+  const w=e.target.closest('[data-w]');
+  if(w){world=w.dataset.w; try{localStorage.setItem('togt-world',world)}catch(_){} render(); return;}
+  const b=e.target.closest('.who');
+  if(b){
+    const c=S.chores.find(x=>x.id===b.dataset.c), m=S.crew.find(x=>x.id===b.dataset.m);
+    const before=lvlOf(m.xp);
+    c.done++; S.doneToday=true;
+    let msg;
+    if(c.done>=c.steps){
+      c.by=m.id; m.gain+=c.reward; m.purse+=c.reward; m.xp+=c.reward; m.count++;
+      const r=b.getBoundingClientRect(); burst(r.left+r.width/2,r.top,Math.min(12,3+Math.round(c.reward/50)));
+      msg=`${COIN} +${c.reward} · ${W[world].toast(m.name)}`;
+      $('boss-face').classList.remove('hit'); void $('boss-face').offsetWidth; $('boss-face').classList.add('hit');
+    } else {
+      m.xp+=10; msg=`${m.emoji} ${m.name} klarede trin ${c.done} af ${c.steps} · +10 XP`;
+    }
+    if(lvlOf(m.xp)>before) msg=`⬆️ LEVEL UP! ${m.name} er nu LV ${lvlOf(m.xp)} · `+msg;
+    render(); pow();
+    if(S.chores.every(x=>x.by)) msg='🗝️ Skattekisten er åben. Fri plyndring!';
+    toast(msg);
+  }
+});
+$('reset').addEventListener('click',()=>{S=JSON.parse(JSON.stringify(START)); render(); toast('Demoen er nulstillet')});
+
+/* boss countdown to Sunday 20:00 */
+function tick(){
+  const now=new Date(), d=new Date(now); const dow=(now.getDay()+6)%7;
+  d.setDate(now.getDate()+(6-dow)); d.setHours(20,0,0,0);
+  let ms=d-now; if(ms<0) ms=0;
+  const D=Math.floor(ms/864e5), H=Math.floor(ms%864e5/36e5), M=Math.floor(ms%36e5/6e4);
+  $('cd').textContent = `${D}d ${String(H).padStart(2,'0')}t ${String(M).padStart(2,'0')}m`;
+}
+render(); tick(); setInterval(tick,30000);
+</script>

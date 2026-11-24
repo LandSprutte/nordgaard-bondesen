@@ -16,6 +16,7 @@ export default [
     },
   },
   {
-    ignores: ["eslint.config.js", ".prettierrc"],
+    // public/ is served as-is (e.g. the service worker), not part of the TS project.
+    ignores: ["eslint.config.js", ".prettierrc", "public/**", ".output/**"],
   },
 ]

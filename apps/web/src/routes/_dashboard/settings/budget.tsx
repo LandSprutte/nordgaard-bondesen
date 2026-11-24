@@ -1,5 +1,5 @@
 import * as React from "react"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 import { SearchIcon } from "lucide-react"
 import { z } from "zod"
 
@@ -40,6 +40,10 @@ import {
 const filters = ["todo", "all", "transfers"] as const
 
 export const Route = createFileRoute("/_dashboard/settings/budget")({
+  // The overview, budget and calendar are for pro parents.
+  beforeLoad: ({ context }) => {
+    if (!context.viewer.isPro) throw redirect({ to: "/chores/plan" })
+  },
   staticData: { title: "Budget" },
   validateSearch: z.object({
     q: z.string().optional(),

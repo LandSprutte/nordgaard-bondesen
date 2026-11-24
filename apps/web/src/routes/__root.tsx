@@ -1,3 +1,4 @@
+import * as React from "react"
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router"
 
 import appCss from "@workspace/ui/globals.css?url"
@@ -15,7 +16,17 @@ export const Route = createRootRoute({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "Family Dashboard",
+        title: "Tjansetogt",
+      },
+      // Installable as an app (PWA).
+      { name: "theme-color", content: "#0b1d33" },
+      { name: "application-name", content: "Tjansetogt" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "Tjansetogt" },
+      {
+        name: "apple-mobile-web-app-status-bar-style",
+        content: "default",
       },
     ],
     links: [
@@ -27,6 +38,9 @@ export const Route = createRootRoute({
         rel: "stylesheet",
         href: gameCss,
       },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "icon", href: "/icon.svg", type: "image/svg+xml" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
     ],
   }),
   notFoundComponent: () => (
@@ -46,8 +60,24 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <TooltipProvider>{children}</TooltipProvider>
+        <ServiceWorker />
         <Scripts />
       </body>
     </html>
   )
+}
+
+/**
+ * Registers the service worker that makes the app installable and shows an
+ * offline page. Only in production builds, so development never serves
+ * stale files.
+ */
+function ServiceWorker() {
+  React.useEffect(() => {
+    if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return
+    navigator.serviceWorker.register("/sw.js").catch((err: unknown) => {
+      console.error("[pwa] service worker failed to register", err)
+    })
+  }, [])
+  return null
 }

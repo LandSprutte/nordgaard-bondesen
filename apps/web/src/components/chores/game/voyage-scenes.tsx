@@ -497,3 +497,84 @@ function BoatAndRider({ className }: { className?: string }) {
     </svg>
   )
 }
+
+/* ------------------------------------------------------------------ */
+/* Pirat: sail to treasure island.                                     */
+
+/** The ship sailing over animated waves towards the island. */
+export function SeaScene({ share, arrived }: SceneProps) {
+  return (
+    <div aria-hidden className="relative mt-5 h-32">
+      {/* The route still to sail. */}
+      <div className="absolute inset-x-8 top-[58%] border-t-2 border-dashed border-white/30" />
+
+      {/* Treasure island. */}
+      <div className="absolute right-0 bottom-6 flex flex-col items-center">
+        <span
+          className={cn(
+            "text-3xl",
+            arrived
+              ? "game-bob drop-shadow-[0_0_14px_rgb(251_191_36)]"
+              : "game-float"
+          )}
+        >
+          {arrived ? "💰" : "🏴‍☠️"}
+        </span>
+        <span className="-mt-1 text-4xl">🏝️</span>
+      </div>
+
+      {/* The ship. */}
+      <div className="absolute inset-y-0 right-20 left-8">
+        <div
+          className="absolute bottom-7 -translate-x-1/2 transition-[left] duration-[1400ms] ease-[cubic-bezier(.3,.8,.3,1)]"
+          style={{ left: `${share * 100}%` }}
+        >
+          <Ship className="game-bob size-16 drop-shadow-lg" />
+        </div>
+      </div>
+
+      <Waves />
+    </div>
+  )
+}
+
+function Ship({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" className={className}>
+      <rect x="31" y="6" width="2.5" height="36" rx="1" fill="#3f2a14" />
+      <path d="M34 8 C50 14 50 30 34 36 Z" fill="#fef3c7" />
+      <path d="M31 12 L14 34 H31 Z" fill="#fde68a" />
+      <path d="M33.5 5 H45 L42 8 L45 11 H33.5 Z" fill="#111827" />
+      <circle cx="38.5" cy="8" r="1.6" fill="#f9fafb" />
+      <path d="M4 40 H60 L52 54 Q32 58 12 54 Z" fill="#92400e" />
+      <path d="M6 43 H58" stroke="#78350f" strokeWidth="2" />
+      <circle cx="20" cy="47" r="2" fill="#fbbf24" />
+      <circle cx="32" cy="48" r="2" fill="#fbbf24" />
+      <circle cx="44" cy="47" r="2" fill="#fbbf24" />
+    </svg>
+  )
+}
+
+const WAVE =
+  "M0 20 Q 75 0 150 20 T 300 20 T 450 20 T 600 20 T 750 20 T 900 20 T 1050 20 T 1200 20 V40 H0 Z"
+
+function Waves() {
+  return (
+    <div className="absolute inset-x-[-1.5rem] bottom-0 h-12 overflow-hidden">
+      <svg
+        viewBox="0 0 1200 40"
+        preserveAspectRatio="none"
+        className="absolute bottom-1 h-10 w-[200%] animate-[game-waves_9s_linear_infinite] fill-cyan-300/30"
+      >
+        <path d={WAVE} />
+      </svg>
+      <svg
+        viewBox="0 0 1200 40"
+        preserveAspectRatio="none"
+        className="absolute -bottom-1 h-9 w-[200%] animate-[game-waves_6s_linear_infinite_reverse] fill-sky-400/40"
+      >
+        <path d={WAVE} />
+      </svg>
+    </div>
+  )
+}

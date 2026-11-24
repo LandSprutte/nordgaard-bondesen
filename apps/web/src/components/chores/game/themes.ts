@@ -35,7 +35,27 @@ export type VoyageTheme = {
   stamp: string
   /** Question when picking who finished a chore. */
   whoDidIt: string
+  /** Name of the week, after "Uge 48 · 23.–29. nov.". */
+  weekName: string
+  /** The Sunday penalty, as a boss the crew fights all week. */
+  boss: { face: string; name: string; meta: string }
+  /** What the crew's level is called. */
+  teamLevel: string
+  /** Titles by level: beginner (LV 1–3), seasoned (4–6), master (7+). */
+  levelTitles: [string, string, string]
+  /** Chore rarity by reward: under 100, under 300, 300 and up. */
+  rarity: [string, string, string]
+  /** Comic words that pop up in the scene when a chore is done. */
+  pow: Array<string>
+  doneLabel: string
+  badgesTitle: string
+  /** [emoji, name, how to get it] for: first chore, 3 days in a row, a gold chore, all chores. */
+  badges: [Badge, Badge, Badge, Badge]
+  /** Toast when someone finishes a chore. */
+  cheer: (name: string) => string
 }
+
+export type Badge = [emoji: string, name: string, how: string]
 
 export const THEMES: Record<ThemeId, VoyageTheme> = {
   pirat: {
@@ -64,6 +84,25 @@ export const THEMES: Record<ThemeId, VoyageTheme> = {
     questsTitle: "Tjanser",
     stamp: "Klaret!",
     whoDidIt: "Hvem klarede den, matros?",
+    weekName: "Kapertogtet",
+    boss: {
+      face: "🐙",
+      name: "Kraken Klamfisk",
+      meta: "Dukker op søndag ved midnat. Hver klaret tjans hugger en arm af.",
+    },
+    teamLevel: "Skibets niveau",
+    levelTitles: ["Dæksdreng", "Matros", "Styrmand"],
+    rarity: ["Hverdag", "Fed fangst", "Kongeskat"],
+    pow: ["ARRR!", "BOOM!", "YO-HO!"],
+    doneLabel: "Tjanser klaret",
+    badgesTitle: "Medaljer",
+    badges: [
+      ["⚓", "Første tjans", "Klar en tjans"],
+      ["🦜", "Tre dage i træk", "3 dage i træk"],
+      ["💎", "Kongeskat", "Klar en guldtjans"],
+      ["🏴‍☠️", "Hele togtet", "Klar alle tjanser"],
+    ],
+    cheer: (name) => `${name} hev en tjans i land!`,
   },
   traktor: {
     id: "traktor",
@@ -90,6 +129,25 @@ export const THEMES: Record<ThemeId, VoyageTheme> = {
     questsTitle: "Markarbejde",
     stamp: "Høstet!",
     whoDidIt: "Hvem kørte den i hus?",
+    weekName: "Høstugen",
+    boss: {
+      face: "🐗",
+      name: "Vildsvinet Bøvl",
+      meta: "Roder i marken søndag ved midnat. Hver klaret tjans lukker et hul i hegnet.",
+    },
+    teamLevel: "Gårdens niveau",
+    levelTitles: ["Markhjælper", "Traktorfører", "Storbonde"],
+    rarity: ["Hverdag", "God høst", "Guldhøst"],
+    pow: ["BRUM!", "VROOM!", "HØST!"],
+    doneLabel: "Marker pløjet",
+    badgesTitle: "Rosetter",
+    badges: [
+      ["🌱", "Første fure", "Klar en tjans"],
+      ["🐓", "Tidligt op", "3 dage i træk"],
+      ["🌾", "Guldhøst", "Klar en guldtjans"],
+      ["🏚️", "Fuld lade", "Klar alle tjanser"],
+    ],
+    cheer: (name) => `${name} pløjede et stykke mark!`,
   },
   spindelhelt: {
     id: "spindelhelt",
@@ -116,6 +174,25 @@ export const THEMES: Record<ThemeId, VoyageTheme> = {
     questsTitle: "Missioner",
     stamp: "Reddet!",
     whoDidIt: "Hvilken helt klarede den?",
+    weekName: "Nattevagten",
+    boss: {
+      face: "👾",
+      name: "Rodemesteren",
+      meta: "Slår til søndag ved midnat. Hver mission I klarer, tager et liv fra ham.",
+    },
+    teamLevel: "Heltenes niveau",
+    levelTitles: ["Rookie", "Nabolagshelt", "Byens helt"],
+    rarity: ["Gadepatrulje", "Farlig", "Superskurk"],
+    pow: ["THWIP!", "POW!", "ZAP!"],
+    doneLabel: "Redninger",
+    badgesTitle: "Heltemærker",
+    badges: [
+      ["🕸️", "Første redning", "Klar en mission"],
+      ["🌙", "Tre nætter", "3 dage i træk"],
+      ["💥", "Superskurk fanget", "Klar en guldmission"],
+      ["🏙️", "Byen er sikker", "Klar alle missioner"],
+    ],
+    cheer: (name) => `${name} reddede dagen!`,
   },
   wakeboard: {
     id: "wakeboard",
@@ -142,6 +219,25 @@ export const THEMES: Record<ThemeId, VoyageTheme> = {
     questsTitle: "Runs",
     stamp: "Landet!",
     whoDidIt: "Hvem landede den?",
+    weekName: "Sæsonens run",
+    boss: {
+      face: "⛈️",
+      name: "Søndagsstormen",
+      meta: "Rammer søen søndag ved midnat. Hver landet run skubber skyerne væk.",
+    },
+    teamLevel: "Crewets niveau",
+    levelTitles: ["Grom", "Rider", "Pro"],
+    rarity: ["Chill", "Big air", "Legendarisk"],
+    pow: ["SPLASH!", "WHOOSH!", "SEND IT!"],
+    doneLabel: "Runs landet",
+    badgesTitle: "Tricks låst op",
+    badges: [
+      ["🤙", "Ollie", "Land dit første run"],
+      ["☀️", "Tre dage på vandet", "3 dage i træk"],
+      ["🌀", "Backroll", "Land et guld-run"],
+      ["🏆", "Perfekt sæson", "Land alle runs"],
+    ],
+    cheer: (name) => `${name} landede et run!`,
   },
 }
 

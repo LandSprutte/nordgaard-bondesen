@@ -1,0 +1,25 @@
+{
+  "id": "/togt",
+  "name": "Tjansetogt",
+  "short_name": "Tjansetogt",
+  "description": "Familiens tjanser som et spil, med dubloner, skatte og budget.",
+  "lang": "da",
+  "start_url": "/togt",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1d33",
+  "theme_color": "#0b1d33",
+  "categories": ["lifestyle", "productivity", "kids"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Ugens togt", "url": "/togt", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Skattekisten", "url": "/togt/skat", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Logbogen", "url": "/togt/log", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

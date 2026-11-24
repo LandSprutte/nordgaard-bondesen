@@ -5,83 +5,167 @@
  */
 
 @keyframes game-bob {
-  0%, 100% { transform: translateY(0) rotate(-3deg); }
-  50% { transform: translateY(-5px) rotate(3deg); }
+  0%,
+  100% {
+    transform: translateY(0) rotate(-3deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(3deg);
+  }
 }
 
 @keyframes game-waves {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 @keyframes game-shimmer {
-  0% { transform: translateX(-150%) skewX(-20deg); }
-  60%, 100% { transform: translateX(350%) skewX(-20deg); }
+  0% {
+    transform: translateX(-150%) skewX(-20deg);
+  }
+  60%,
+  100% {
+    transform: translateX(350%) skewX(-20deg);
+  }
 }
 
 @keyframes game-stamp {
-  0% { transform: scale(2.4) rotate(-30deg); opacity: 0; }
-  55% { transform: scale(0.88) rotate(-8deg); opacity: 1; }
-  75% { transform: scale(1.06) rotate(-14deg); }
-  100% { transform: scale(1) rotate(-12deg); opacity: 1; }
+  0% {
+    transform: scale(2.4) rotate(-30deg);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(0.88) rotate(-8deg);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(1.06) rotate(-14deg);
+  }
+  100% {
+    transform: scale(1) rotate(-12deg);
+    opacity: 1;
+  }
 }
 
 @keyframes game-rise {
-  from { opacity: 0; transform: translateY(14px) scale(0.97); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @keyframes game-pop {
-  0% { transform: scale(1); }
-  40% { transform: scale(1.4); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.4);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 @keyframes game-wobble {
-  0%, 100% { transform: rotate(0); }
-  15% { transform: rotate(-14deg); }
-  30% { transform: rotate(10deg); }
-  45% { transform: rotate(-6deg); }
-  60% { transform: rotate(3deg); }
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  15% {
+    transform: rotate(-14deg);
+  }
+  30% {
+    transform: rotate(10deg);
+  }
+  45% {
+    transform: rotate(-6deg);
+  }
+  60% {
+    transform: rotate(3deg);
+  }
 }
 
 @keyframes game-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgb(251 191 36 / 0.65); }
-  50% { box-shadow: 0 0 0 10px rgb(251 191 36 / 0); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(251 191 36 / 0.65);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgb(251 191 36 / 0);
+  }
 }
 
 @keyframes game-twinkle {
-  0%, 100% { opacity: 0.15; transform: scale(0.7); }
-  50% { opacity: 1; transform: scale(1.15); }
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
 }
 
 @keyframes game-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 @keyframes game-spin-slow {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Voyage worlds: tractor, web-slinger and wakeboard scenes. */
 @keyframes game-drift {
-  from { transform: translateX(0); }
-  to { transform: translateX(-140px); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-140px);
+  }
 }
 
 @keyframes game-rumble {
-  to { transform: translateY(-2px); }
+  to {
+    transform: translateY(-2px);
+  }
 }
 
 @keyframes game-swing {
-  0%, 100% { transform: rotate(-7deg); }
-  50% { transform: rotate(7deg); }
+  0%,
+  100% {
+    transform: rotate(-7deg);
+  }
+  50% {
+    transform: rotate(7deg);
+  }
 }
 
 @keyframes game-puff {
-  0% { opacity: 0.8; transform: translate(0, 0) scale(0.5); }
-  100% { opacity: 0; transform: translate(-10px, -26px) scale(1.6); }
+  0% {
+    opacity: 0.8;
+    transform: translate(0, 0) scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-10px, -26px) scale(1.6);
+  }
 }
 
 .game-wheel {
@@ -126,19 +210,35 @@
   position: absolute;
   inset: 0;
   width: 35%;
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(255 255 255 / 0.55),
+    transparent
+  );
   animation: game-shimmer 3.2s ease-in-out infinite;
   pointer-events: none;
 }
 
 @keyframes game-reveal {
-  0% { transform: translate(-50%, 70px) scale(0.2); opacity: 0; }
-  60% { transform: translate(-50%, -10px) scale(1.12); opacity: 1; }
-  100% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+  0% {
+    transform: translate(-50%, 70px) scale(0.2);
+    opacity: 0;
+  }
+  60% {
+    transform: translate(-50%, -10px) scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, 0) scale(1);
+    opacity: 1;
+  }
 }
 
 @keyframes game-rays {
-  to { transform: translate(-50%, -50%) rotate(360deg); }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
 /* The big treasure chest. The lid hinges at its back-left corner. */
