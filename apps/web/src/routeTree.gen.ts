@@ -21,6 +21,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as TogtIndexRouteImport } from './routes/togt/index'
 import { Route as TogtLogRouteImport } from './routes/togt/log'
+import { Route as TogtProfilRouteImport } from './routes/togt/profil'
 import { Route as TogtSkatRouteImport } from './routes/togt/skat'
 import { Route as DashboardBudgetIndexRouteImport } from './routes/_dashboard/budget/index'
 import { Route as DashboardBudgetExpensesRouteImport } from './routes/_dashboard/budget/expenses'
@@ -94,6 +95,11 @@ const TogtIndexRoute = TogtIndexRouteImport.update({
 const TogtLogRoute = TogtLogRouteImport.update({
   id: '/log',
   path: '/log',
+  getParentRoute: () => TogtRoute,
+} as any)
+const TogtProfilRoute = TogtProfilRouteImport.update({
+  id: '/profil',
+  path: '/profil',
   getParentRoute: () => TogtRoute,
 } as any)
 const TogtSkatRoute = TogtSkatRouteImport.update({
@@ -183,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof DashboardSettingsRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
   '/togt/log': typeof TogtLogRoute
+  '/togt/profil': typeof TogtProfilRoute
   '/togt/skat': typeof TogtSkatRoute
   '/admin/': typeof AdminIndexRoute
   '/togt/': typeof TogtIndexRoute
@@ -206,6 +213,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof DashboardCalendarRoute
   '/admin/login': typeof AdminLoginRoute
   '/togt/log': typeof TogtLogRoute
+  '/togt/profil': typeof TogtProfilRoute
   '/togt/skat': typeof TogtSkatRoute
   '/': typeof DashboardIndexRoute
   '/admin': typeof AdminIndexRoute
@@ -236,6 +244,7 @@ export interface FileRoutesById {
   '/_dashboard/settings': typeof DashboardSettingsRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
   '/togt/log': typeof TogtLogRoute
+  '/togt/profil': typeof TogtProfilRoute
   '/togt/skat': typeof TogtSkatRoute
   '/_dashboard/': typeof DashboardIndexRoute
   '/admin/': typeof AdminIndexRoute
@@ -267,6 +276,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/login'
     | '/togt/log'
+    | '/togt/profil'
     | '/togt/skat'
     | '/admin/'
     | '/togt/'
@@ -290,6 +300,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/admin/login'
     | '/togt/log'
+    | '/togt/profil'
     | '/togt/skat'
     | '/'
     | '/admin'
@@ -319,6 +330,7 @@ export interface FileRouteTypes {
     | '/_dashboard/settings'
     | '/admin/login'
     | '/togt/log'
+    | '/togt/profil'
     | '/togt/skat'
     | '/_dashboard/'
     | '/admin/'
@@ -431,6 +443,13 @@ declare module '@tanstack/react-router' {
       path: '/log'
       fullPath: '/togt/log'
       preLoaderRoute: typeof TogtLogRouteImport
+      parentRoute: typeof TogtRoute
+    }
+    '/togt/profil': {
+      id: '/togt/profil'
+      path: '/profil'
+      fullPath: '/togt/profil'
+      preLoaderRoute: typeof TogtProfilRouteImport
       parentRoute: typeof TogtRoute
     }
     '/togt/skat': {
@@ -620,12 +639,14 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 
 interface TogtRouteChildren {
   TogtLogRoute: typeof TogtLogRoute
+  TogtProfilRoute: typeof TogtProfilRoute
   TogtSkatRoute: typeof TogtSkatRoute
   TogtIndexRoute: typeof TogtIndexRoute
 }
 
 const TogtRouteChildren: TogtRouteChildren = {
   TogtLogRoute: TogtLogRoute,
+  TogtProfilRoute: TogtProfilRoute,
   TogtSkatRoute: TogtSkatRoute,
   TogtIndexRoute: TogtIndexRoute,
 }

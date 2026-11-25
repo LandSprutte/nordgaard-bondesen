@@ -36,6 +36,7 @@ export function Stage({
   doneDays,
   upForGrabs,
   pow,
+  corner,
 }: {
   theme: VoyageTheme
   week: string
@@ -48,6 +49,8 @@ export function Stage({
   upForGrabs: number
   /** A comic word to pop up over the hero, with a key to replay it. */
   pow: { key: number; word: string } | null
+  /** Shown in the top right corner: the crew. */
+  corner?: React.ReactNode
 }) {
   const finished = done.reduce((sum, d) => sum + d.count, 0)
   const share = total === 0 ? 0 : finished / total
@@ -68,36 +71,39 @@ export function Stage({
   return (
     <section className="tg-stage" aria-label="Ugens togt">
       <div className="tg-stage-head">
-        <p className="tg-eyebrow">
-          Uge {weekNumber(week)} · {formatWeek(week)} · {theme.weekName}
-        </p>
-        <h2>{headline}</h2>
-        <p className="tg-stage-sub">
-          {arrived ? theme.arrivedText : theme.warning}
-        </p>
-        <ol className="tg-days" aria-label="Ugens dage">
-          {DAY_LETTERS.map((letter, i) => {
-            const date = addDays(week, i)
-            return (
-              <li
-                key={date}
-                aria-current={date === today ? "date" : undefined}
-                className={cn(
-                  "tg-day",
-                  date < today && "is-past",
-                  date === today && "is-today"
-                )}
-              >
-                {letter}
-                {doneDays.has(date) && (
-                  <span className="tg-tick" aria-label="tjanser klaret">
-                    ✓
-                  </span>
-                )}
-              </li>
-            )
-          })}
-        </ol>
+        <div className="tg-stage-intro">
+          <p className="tg-eyebrow">
+            Uge {weekNumber(week)} · {formatWeek(week)} · {theme.weekName}
+          </p>
+          <h2>{headline}</h2>
+          <p className="tg-stage-sub">
+            {arrived ? theme.arrivedText : theme.warning}
+          </p>
+          <ol className="tg-days" aria-label="Ugens dage">
+            {DAY_LETTERS.map((letter, i) => {
+              const date = addDays(week, i)
+              return (
+                <li
+                  key={date}
+                  aria-current={date === today ? "date" : undefined}
+                  className={cn(
+                    "tg-day",
+                    date < today && "is-past",
+                    date === today && "is-today"
+                  )}
+                >
+                  {letter}
+                  {doneDays.has(date) && (
+                    <span className="tg-tick" aria-label="tjanser klaret">
+                      ✓
+                    </span>
+                  )}
+                </li>
+              )
+            })}
+          </ol>
+        </div>
+        {corner}
       </div>
 
       <div className="tg-scene">

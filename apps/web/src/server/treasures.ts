@@ -43,39 +43,28 @@ export const deleteTreasure = createServerFn({ method: "POST" })
   })
 
 /**
- * A member buys a treasure, if they can afford it. Children can only spend
- * their own doubloons.
+ * A parent redeems a treasure from the family's shared chest, once the
+ * family has saved up for it together.
  */
-export const claimTreasure = createServerFn({ method: "POST" })
-  .validator(
-    z.object({ treasureId: z.string().min(1), memberId: z.string().min(1) })
-  )
+export const redeemTreasure = createServerFn({ method: "POST" })
+  .validator(z.object({ treasureId: z.string().min(1) }))
   .handler(async ({ data }) => {
-    const viewer = await requireFamily()
-    if (!viewer.isParent && data.memberId !== viewer.member.id) {
-      throw new Error("Du kan kun bruge dine egne dubloner.")
-    }
+    const viewer = await requireParent()
     const { familyId } = viewer
     return prisma.$transaction(async (tx) => {
-      // One purchase at a time per member, so the balance can't be spent twice.
-      await tx.$executeRaw`SELECT 1 FROM "Member" WHERE id = ${data.memberId} FOR UPDATE`
-      const [treasure, member, balance] = await Promise.all([
+      // One redemption at a time per family, so the chest can't be spent twice.
+      await tx.$executeRaw`SELECT 1 FROM "Family" WHERE id = ${familyId} FOR UPDATE`
+      const [treasure, chest] = await Promise.all([
         tx.treasure.findUniqueOrThrow({
           where: { id: data.treasureId, familyId },
         }),
-        tx.member.findUniqueOrThrow({
-          where: { id: data.memberId, familyId },
-        }),
         tx.doubloonEntry.aggregate({
-          where: { memberId: data.memberId },
+          where: { familyId },
           _sum: { amount: true },
         }),
       ])
-      if (member.archived) throw new Error(`${member.name} er gået i land.`)
-      if ((balance._sum.amount ?? 0) < treasure.cost) {
-        throw new Error(
-          `${member.name} har ikke dubloner nok til ${treasure.title} endnu.`
-        )
+      if ((chest._sum.amount ?? 0) < treasure.cost) {
+        throw new Error(`Der er ikke dubloner nok til ${treasure.title} endnu.`)
       }
       await tx.doubloonEntry.create({
         data: {
@@ -83,7 +72,7 @@ export const claimTreasure = createServerFn({ method: "POST" })
           kind: "purchase",
           amount: -treasure.cost,
           note: treasure.title,
-          memberId: member.id,
+          memberId: viewer.member.id,
           treasureId: treasure.id,
         },
       })

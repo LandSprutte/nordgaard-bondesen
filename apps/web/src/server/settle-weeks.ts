@@ -1,6 +1,6 @@
 import { prisma } from "@workspace/db"
 
-import { dateOf, penaltyFor, toDbDate, today, weekStart } from "@/lib/chores"
+import { dateOf, penaltiesFor, toDbDate, today, weekStart } from "@/lib/chores"
 
 // Server-only. Import this from inside server function handlers only: a plain
 // export that uses prisma would otherwise end up in the client bundle.
@@ -10,9 +10,8 @@ import { dateOf, penaltyFor, toDbDate, today, weekStart } from "@/lib/chores"
 const SETTLE_LOCK = 4242002
 
 /**
- * Charges every week a family has ended with chores left undone: each
- * active member loses 10% of their purse per undone chore, one chore after
- * another.
+ * Charges every week a family has ended with chores left undone: the
+ * family's shared chest loses 10% per undone chore, one chore after another.
  * Runs lazily on page loads and does nothing once a week is settled.
  */
 export async function settleWeeks(familyId: string, on: string = today()) {
@@ -43,40 +42,29 @@ export async function settleWeeks(familyId: string, on: string = today()) {
       if (await tx.weekSettlement.findUnique({ where: key })) {
         return
       }
-      const [undone, members, sums] = await Promise.all([
+      const [undone, chest] = await Promise.all([
         tx.weekChore.findMany({
           where: { familyId, week: weekDate, doneById: null },
           orderBy: { position: "asc" },
           select: { id: true, title: true },
         }),
-        tx.member.findMany({
-          where: { familyId, archived: false },
-          select: { id: true },
-        }),
-        tx.doubloonEntry.groupBy({
-          by: ["memberId"],
+        tx.doubloonEntry.aggregate({
           where: { familyId },
           _sum: { amount: true },
         }),
       ])
-      const balance = new Map(sums.map((s) => [s.memberId, s._sum.amount ?? 0]))
-      const charges = []
-      for (const chore of undone) {
-        for (const member of members) {
-          const charge = penaltyFor(balance.get(member.id) ?? 0)
-          if (charge === 0) continue
-          balance.set(member.id, (balance.get(member.id) ?? 0) - charge)
-          charges.push({
+      const charges = penaltiesFor(chest._sum.amount ?? 0, undone.length)
+      if (charges.length) {
+        await tx.doubloonEntry.createMany({
+          data: charges.map((charge, i) => ({
             familyId,
             kind: "penalty" as const,
             amount: -charge,
-            note: chore.title,
-            memberId: member.id,
-            weekChoreId: chore.id,
-          })
-        }
+            note: undone[i].title,
+            weekChoreId: undone[i].id,
+          })),
+        })
       }
-      if (charges.length) await tx.doubloonEntry.createMany({ data: charges })
       await tx.weekSettlement.create({ data: { familyId, week: weekDate } })
     })
   }

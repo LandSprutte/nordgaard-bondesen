@@ -150,7 +150,7 @@ export function Confetti({ play }: { play: number }) {
     <div
       ref={ref}
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-50 overflow-hidden"
+      className="pointer-events-none fixed inset-0 z-[75] overflow-hidden"
     />
   )
 }

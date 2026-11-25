@@ -13,8 +13,8 @@ export function rarityOf(doubloons: number): 0 | 1 | 2 {
 }
 
 /**
- * A chore as a quest. Anyone can tick its steps; tapping a face says who
- * finished it, and they get the whole reward.
+ * A chore as a quest. Anyone can tick its steps. A parent taps a face to say
+ * who finished it; a child gets one big button for themselves.
  */
 export function QuestCard({
   chore,
@@ -26,16 +26,19 @@ export function QuestCard({
   onTick,
   onComplete,
   onReopen,
+  self,
 }: {
   chore: WeekChore
   crew: Array<Member>
+  /** A child playing: they can only finish chores themselves. */
+  self?: Member
   theme: VoyageTheme
   editable: boolean
   /** Parents can reopen a finished chore; children can't. */
   canUndo: boolean
   index: number
   onTick: (itemId: string, done: boolean) => void
-  onComplete: (member: Member, button: HTMLElement) => void
+  onComplete: (member: Member) => void
   onReopen: () => void
 }) {
   const by = chore.doneBy
@@ -111,48 +114,61 @@ export function QuestCard({
         </>
       )}
 
-      {by ? (
-        <div className="tg-done-row">
-          <span>
-            {by.name} klarede den
-            {chore.doubloons > 0 && ` · +${chore.doubloons}`}
-          </span>
-          {editable && canUndo && (
-            <button
-              type="button"
-              className="tg-link-btn"
-              onClick={onReopen}
-              aria-label={`Fortryd: ${chore.title} er ikke klaret`}
-            >
-              ↩ Fortryd
-            </button>
-          )}
-        </div>
-      ) : (
-        editable && (
-          <div className="tg-q-act">
-            <span>
-              {steps > 0 && !ready
-                ? `Trin ${ticked}/${steps} · hvem klarede det hele?`
-                : theme.whoDidIt}
-            </span>
-            {crew.length === 0 && <span>Ingen i besætningen endnu.</span>}
-            {crew.map((member) => (
+      {by
+        ? editable &&
+          canUndo && (
+            <div className="tg-undo">
               <button
-                key={member.id}
                 type="button"
-                className="tg-who"
-                style={{ "--mc": member.color } as React.CSSProperties}
-                aria-label={`${member.name} klarede ${chore.title}`}
-                onClick={(e) => onComplete(member, e.currentTarget)}
+                className="tg-link-btn"
+                onClick={onReopen}
+                aria-label={`Fortryd: ${chore.title} er ikke klaret`}
               >
-                <em aria-hidden>{member.emoji}</em>
-                {member.name}
+                ↩ Fortryd
               </button>
-            ))}
-          </div>
-        )
-      )}
+            </div>
+          )
+        : editable &&
+          (self ? (
+            <div className="tg-q-act">
+              <button
+                type="button"
+                className="tg-btn is-go is-wide"
+                disabled={steps > 0 && !ready}
+                aria-label={`Jeg klarede ${chore.title}`}
+                onClick={() => onComplete(self)}
+              >
+                Jeg klarede den!
+              </button>
+              {steps > 0 && !ready && (
+                <span>
+                  Sæt flueben ved alle trin først · {ticked}/{steps}
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="tg-q-act">
+              <span>
+                {steps > 0 && !ready
+                  ? `Trin ${ticked}/${steps} · hvem klarede det hele?`
+                  : theme.whoDidIt}
+              </span>
+              {crew.length === 0 && <span>Ingen i besætningen endnu.</span>}
+              {crew.map((member) => (
+                <button
+                  key={member.id}
+                  type="button"
+                  className="tg-who"
+                  style={{ "--mc": member.color } as React.CSSProperties}
+                  aria-label={`${member.name} klarede ${chore.title}`}
+                  onClick={() => onComplete(member)}
+                >
+                  <em aria-hidden>{member.emoji}</em>
+                  {member.name}
+                </button>
+              ))}
+            </div>
+          ))}
     </article>
   )
 }

@@ -7,15 +7,11 @@ import type { Hero } from "@/components/togt/board"
 import { Confetti } from "@/components/chores/game/celebrate"
 import { GoldCoin } from "@/components/chores/game/gold-coin"
 import { useVoyageTheme } from "@/components/chores/game/themes"
-import {
-  Badges,
-  Boss,
-  BossStruck,
-  HeroCard,
-  Hud,
-  levelOf,
-} from "@/components/togt/board"
-import { flyCoins, useReplay, useToast } from "@/components/togt/effects"
+import { CrewAvatars, Goal, Hud } from "@/components/togt/board"
+import { levelOf } from "@/lib/progress"
+import type { JarDrop } from "@/components/togt/coin-jar"
+import { CoinJar } from "@/components/togt/coin-jar"
+import { useReplay, useToast } from "@/components/togt/effects"
 import { QuestCard, rarityOf } from "@/components/togt/quest-card"
 import { Stage } from "@/components/togt/stage"
 import {
@@ -78,9 +74,13 @@ function ThisWeek() {
       gain,
       chores: mine.length,
       xp: m.xp + delta,
-      balance: m.balance + delta,
     }
   })
+  // The chest, with what's been earned here but isn't saved yet.
+  const chestBalance =
+    data.chest.balance +
+    heroes.reduce((sum, h) => sum + h.gain, 0) -
+    data.crew.reduce((sum, m) => sum + m.earned, 0)
   const shown = heroes.filter((h) => !h.archived || h.gain > 0)
   const best = Math.max(0, ...heroes.map((h) => h.gain))
   const doneDays = new Set(chores.flatMap((c) => (c.doneOn ? [c.doneOn] : [])))
@@ -90,11 +90,11 @@ function ThisWeek() {
   const toast = useToast()
   const [walletHit, setWalletHit] = React.useState(0)
   const wallet = useReplay<HTMLDivElement>(walletHit, "is-hit")
-  const [bossHit, setBossHit] = React.useState(0)
   const [pow, setPow] = React.useState<{ key: number; word: string } | null>(
     null
   )
   const [confetti, setConfetti] = React.useState(0)
+  const [jar, setJar] = React.useState<JarDrop | null>(null)
   const [error, setError] = React.useState<string | null>(null)
 
   const save = async (
@@ -124,19 +124,22 @@ function ThisWeek() {
     }
   }
 
-  const complete = (chore: WeekChore, member: Member, button: HTMLElement) => {
+  const complete = (chore: WeekChore, member: Member) => {
     const hero = heroes.find((h) => h.id === member.id)
     const levelBefore = levelOf(hero?.xp ?? 0)
     const levelAfter = levelOf((hero?.xp ?? 0) + chore.doubloons)
     const lastOne = finished + 1 === chores.length
 
-    flyCoins(
-      button,
-      wallet.current,
-      Math.min(12, 3 + Math.round(chore.doubloons / 50))
-    )
-    setTimeout(() => setWalletHit((n) => n + 1), 700)
-    setBossHit((n) => n + 1)
+    if (chore.doubloons > 0) {
+      setJar((prev) => ({
+        key: (prev?.key ?? 0) + 1,
+        amount: chore.doubloons,
+        from: chestBalance,
+        to: chestBalance + chore.doubloons,
+        goal: data.chest.goal,
+      }))
+      setTimeout(() => setWalletHit((n) => n + 1), 1600)
+    }
     setPow((prev) => ({
       key: (prev?.key ?? 0) + 1,
       word: theme.pow[Math.floor(Math.random() * theme.pow.length)],
@@ -205,14 +208,21 @@ function ThisWeek() {
   return (
     <>
       <Confetti play={confetti} />
+      <CoinJar drop={jar} />
       {toast.element}
 
       <Hud
         theme={theme}
         teamXp={heroes.reduce((sum, h) => sum + h.xp, 0)}
         streak={streak}
-        coins={heroes.reduce((sum, h) => sum + h.balance, 0)}
+        coins={chestBalance}
         walletRef={wallet}
+      />
+
+      <Goal
+        goal={data.chest.goal}
+        balance={chestBalance}
+        ready={data.chest.ready}
       />
 
       <Stage
@@ -224,53 +234,8 @@ function ThisWeek() {
         doneDays={doneDays}
         upForGrabs={upForGrabs}
         pow={pow}
+        corner={<CrewAvatars heroes={shown} theme={theme} best={best} />}
       />
-
-      {data.lastWeek && data.lastWeek.undone.length > 0 && (
-        <BossStruck
-          theme={theme}
-          undone={data.lastWeek.undone}
-          lost={data.lastWeek.lost}
-        />
-      )}
-
-      <Boss
-        theme={theme}
-        week={week}
-        hit={bossHit}
-        chores={chores.map((c) => ({
-          id: c.id,
-          title: c.title,
-          done: c.doneBy !== null,
-        }))}
-      />
-
-      <section className="tg-sec" aria-labelledby="crew-h">
-        <div className="tg-sec-h">
-          <h2 id="crew-h">{theme.crewTitle}</h2>
-          <span>{active.length} spillere</span>
-        </div>
-        {active.length === 0 ? (
-          <Note
-            icon="🦜"
-            action={<Link to="/settings/family">Mønstr besætningen</Link>}
-          >
-            Ingen besætning endnu! Mønstr familien, så der er nogen at betale,
-            når en tjans bliver klaret.
-          </Note>
-        ) : (
-          <div className="tg-crew">
-            {shown.map((hero) => (
-              <HeroCard
-                key={hero.id}
-                hero={hero}
-                theme={theme}
-                top={best > 0 && hero.gain === best}
-              />
-            ))}
-          </div>
-        )}
-      </section>
 
       <section className="tg-sec" aria-labelledby="quests-h">
         <div className="tg-sec-h">
@@ -316,32 +281,19 @@ function ThisWeek() {
                   theme={theme}
                   editable={editable}
                   canUndo={data.me.isParent}
+                  self={
+                    data.me.isParent
+                      ? undefined
+                      : active.find((m) => m.id === data.me.id)
+                  }
                   index={index}
                   onTick={(itemId, done) => tick(chore, itemId, done)}
-                  onComplete={(member, button) =>
-                    complete(chore, member, button)
-                  }
+                  onComplete={(member) => complete(chore, member)}
                   onReopen={() => reopen(chore)}
                 />
               ))}
           </div>
         )}
-      </section>
-
-      <section className="tg-sec" aria-labelledby="badges-h">
-        <div className="tg-sec-h">
-          <h2 id="badges-h">{theme.badgesTitle}</h2>
-          <span>Låses op i løbet af ugen</span>
-        </div>
-        <Badges
-          theme={theme}
-          earned={[
-            finished > 0,
-            streak >= 3,
-            chores.some((c) => c.doneBy && rarityOf(c.doubloons) === 2),
-            allDone,
-          ]}
-        />
       </section>
     </>
   )

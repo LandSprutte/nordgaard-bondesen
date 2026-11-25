@@ -266,7 +266,7 @@ enum DoubloonKind {
   purchase
 }
 
-/// One change to a member's purse. Their balance is the sum.
+/// One change to the family's shared chest. Its balance is the sum.
 model DoubloonEntry {
   id          String       @id @default(cuid())
   familyId    String
@@ -276,8 +276,10 @@ model DoubloonEntry {
   amount      Int
   /// What it was for, kept even if the chore or treasure is deleted later.
   note        String
-  memberId    String
-  member      Member       @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  /// Who earned it, or who redeemed the treasure. Empty for penalties, which
+  /// come out of the family's shared chest.
+  memberId    String?
+  member      Member?      @relation(fields: [memberId], references: [id], onDelete: Restrict)
   weekChoreId String?
   weekChore   WeekChore?   @relation(fields: [weekChoreId], references: [id], onDelete: SetNull)
   treasureId  String?

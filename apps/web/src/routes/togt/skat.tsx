@@ -5,43 +5,38 @@ import type {
   ChestReveal,
   ChestState,
 } from "@/components/chores/game/big-chest"
-import type { Member } from "@/components/chores/member-avatar"
 import { BigChest } from "@/components/chores/game/big-chest"
 import { Confetti, CountUp } from "@/components/chores/game/celebrate"
 import { GoldCoin } from "@/components/chores/game/gold-coin"
 import { treasureIcon } from "@/components/chores/game/treasure-icon"
 import { useToast } from "@/components/togt/effects"
-import { getPurses } from "@/server/doubloons"
-import { claimTreasure, listTreasures } from "@/server/treasures"
+import { getChest } from "@/server/doubloons"
+import { listTreasures, redeemTreasure } from "@/server/treasures"
 import { cn } from "@workspace/ui/lib/utils"
 
 export const Route = createFileRoute("/togt/skat")({
   head: () => ({ meta: [{ title: "Skattekisten · Tjansetogt" }] }),
   loader: async () => {
-    const [treasures, crew] = await Promise.all([listTreasures(), getPurses()])
-    return { treasures, crew }
+    const [treasures, chest] = await Promise.all([listTreasures(), getChest()])
+    return { treasures, chest }
   },
   component: TreasurePage,
 })
 
 type Treasure = Awaited<ReturnType<typeof listTreasures>>[number]
-type Purse = Awaited<ReturnType<typeof getPurses>>[number]
 
-/** How long the chest stays open after a claim. */
+/** How long the chest stays open after a treasure is redeemed. */
 const CLAIMED_MS = 4500
 const count = new Intl.NumberFormat("da-DK")
 
 function TreasurePage() {
-  const { treasures, crew } = Route.useLoaderData()
+  const { treasures, chest } = Route.useLoaderData()
   const { viewer } = Route.useRouteContext()
   const router = useRouter()
   const toast = useToast()
   // The treasure being looked at (hovered, focused or tapped).
   const [peek, setPeek] = React.useState<string | null>(null)
-  const [claimed, setClaimed] = React.useState<{
-    treasure: Treasure
-    member: Member
-  } | null>(null)
+  const [claimed, setClaimed] = React.useState<Treasure | null>(null)
   const [busy, setBusy] = React.useState(false)
   const [confetti, setConfetti] = React.useState(0)
 
@@ -51,54 +46,50 @@ function TreasurePage() {
     return () => clearTimeout(timer)
   }, [claimed])
 
-  const richest = [...crew].sort((a, b) => b.balance - a.balance).at(0)
   const looking = treasures.find((t) => t.id === peek)
-  const canAfford = (t: Treasure) => crew.filter((m) => m.balance >= t.cost)
+  const canAfford = (t: Treasure) => chest.balance >= t.cost
 
   let state: ChestState = "closed"
   let reveal: ChestReveal | null = null
   if (claimed) {
     state = "claimed"
     reveal = {
-      emoji: treasureIcon(claimed.treasure.title),
-      title: claimed.treasure.title,
-      caption: `${claimed.member.name} plyndrede den! 🎉`,
+      emoji: treasureIcon(claimed.title),
+      title: claimed.title,
+      caption: "Hele familien har tjent den! 🎉",
     }
   } else if (looking) {
-    const rich = canAfford(looking)
-    if (rich.length > 0) {
+    if (canAfford(looking)) {
       state = "open"
       reveal = {
         emoji: treasureIcon(looking.title),
         title: looking.title,
-        caption: `${rich.map((m) => m.name).join(", ")} kan plyndre den!`,
+        caption: viewer.isParent
+          ? "Der er nok i kisten! Indløs den herunder."
+          : "Der er nok i kisten! Hent en voksen.",
       }
     } else {
       state = "locked"
       reveal = {
         emoji: "🔒",
         title: looking.title,
-        caption: richest
-          ? `Låst! ${richest.name} mangler ${count.format(looking.cost - richest.balance)} dubloner endnu.`
-          : "Låst! Ingen har dubloner endnu.",
+        caption: `Låst! I mangler ${count.format(looking.cost - chest.balance)} dubloner endnu.`,
       }
     }
   }
 
-  const claim = async (treasure: Treasure, member: Member) => {
+  const redeem = async (treasure: Treasure) => {
     setBusy(true)
     try {
-      await claimTreasure({
-        data: { treasureId: treasure.id, memberId: member.id },
-      })
-      setClaimed({ treasure, member })
+      await redeemTreasure({ data: { treasureId: treasure.id } })
+      setClaimed(treasure)
       setConfetti((n) => n + 1)
-      toast.show(`💰 ${member.name} plyndrede ${treasure.title}!`)
+      toast.show(`💰 ${treasure.title} er indløst!`)
       window.scrollTo({ top: 0, behavior: "smooth" })
       await router.invalidate()
     } catch (err) {
-      console.error("[togt] could not claim", err)
-      toast.show(`Arrh, ${treasure.title} kunne ikke plyndres. Prøv igen.`)
+      console.error("[togt] could not redeem", err)
+      toast.show(`Arrh, ${treasure.title} kunne ikke indløses. Prøv igen.`)
     } finally {
       setBusy(false)
     }
@@ -110,7 +101,7 @@ function TreasurePage() {
       {toast.element}
 
       <section className="tg-vault" aria-label="Skattekisten">
-        <p className="tg-eyebrow">Brug dine dubloner</p>
+        <p className="tg-eyebrow">Familiens fælles skat</p>
         <h2>Skattekisten</h2>
         <BigChest state={state} reveal={reveal} />
         <p className="tg-vault-hint" role="status">
@@ -119,30 +110,25 @@ function TreasurePage() {
               ? "Peg på en skat herunder for at kigge i kisten…"
               : "Kisten er tom. En voksen kan lægge skatte i den.")}
         </p>
-        {crew.length > 0 && (
-          <ul className="tg-purses">
-            {crew.map((m) => (
-              <li key={m.id} style={{ "--mc": m.color } as React.CSSProperties}>
-                <em aria-hidden>{m.emoji}</em>
-                {m.name}
-                <span className="tg-amt tg-num">
-                  <GoldCoin className="tg-coin" />
-                  <CountUp value={m.balance} />
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <p className="tg-chest-total tg-num">
+          <GoldCoin className="tg-coin" />
+          <CountUp value={chest.balance} />
+          <span className="sr-only">dubloner i kisten</span>
+        </p>
       </section>
 
       <section className="tg-sec" aria-labelledby="loot-h">
         <div className="tg-sec-h">
-          <h2 id="loot-h">Byttet</h2>
+          <h2 id="loot-h">Fælles mål</h2>
           <span>
             {treasures.length === 0 ? (
-              <Link to="/settings/treasures" style={{ color: "inherit" }}>
-                Læg skatte i kisten
-              </Link>
+              viewer.isParent ? (
+                <Link to="/settings/treasures" style={{ color: "inherit" }}>
+                  Læg skatte i kisten
+                </Link>
+              ) : (
+                "Ingen skatte endnu"
+              )
             ) : (
               `${treasures.length} skatte`
             )}
@@ -154,12 +140,8 @@ function TreasurePage() {
               key={treasure.id}
               treasure={treasure}
               index={index}
-              rich={canAfford(treasure)}
-              // Children can only spend their own doubloons.
-              buyers={canAfford(treasure).filter(
-                (m) => viewer.isParent || m.id === viewer.member.id
-              )}
-              richest={richest}
+              balance={chest.balance}
+              canRedeem={viewer.isParent}
               active={looking?.id === treasure.id}
               busy={busy}
               onPeek={(on) =>
@@ -167,7 +149,7 @@ function TreasurePage() {
                   on ? treasure.id : current === treasure.id ? null : current
                 )
               }
-              onClaim={(member) => void claim(treasure, member)}
+              onRedeem={() => void redeem(treasure)}
             />
           ))}
         </div>
@@ -179,27 +161,25 @@ function TreasurePage() {
 function LootCard({
   treasure,
   index,
-  rich,
-  buyers,
-  richest,
+  balance,
+  canRedeem,
   active,
   busy,
   onPeek,
-  onClaim,
+  onRedeem,
 }: {
   treasure: Treasure
   index: number
-  rich: Array<Purse>
-  /** Who may claim it from this device. */
-  buyers: Array<Purse>
-  richest: Purse | undefined
+  /** What's in the family's chest. */
+  balance: number
+  /** Only parents redeem treasures. */
+  canRedeem: boolean
   active: boolean
   busy: boolean
   onPeek: (on: boolean) => void
-  onClaim: (member: Member) => void
+  onRedeem: () => void
 }) {
-  const affordable = rich.length > 0
-  const best = richest?.balance ?? 0
+  const affordable = balance >= treasure.cost
   return (
     <article
       onPointerEnter={(e) => e.pointerType === "mouse" && onPeek(true)}
@@ -229,7 +209,7 @@ function LootCard({
               <span className="sr-only">dubloner</span>
             </span>
             <span className={`tg-pill tg-rar ${affordable ? "r2" : "r0"}`}>
-              {affordable ? "Kan plyndres" : "🔒 Låst"}
+              {affordable ? "Klar!" : "🔒 Låst"}
             </span>
           </div>
         </div>
@@ -237,44 +217,35 @@ function LootCard({
 
       {affordable ? (
         <div className="tg-q-act">
-          <span>Hvem plyndrer den?</span>
-          {buyers.length === 0 && <span>Det er ikke dine dubloner.</span>}
-          {buyers.map((member) => (
+          {canRedeem ? (
             <button
-              key={member.id}
               type="button"
-              className="tg-who"
+              className="tg-btn"
               disabled={busy}
-              style={{ "--mc": member.color } as React.CSSProperties}
-              aria-label={`${member.name} plyndrer ${treasure.title}`}
+              aria-label={`Indløs ${treasure.title}`}
               onClick={(e) => {
                 e.stopPropagation()
-                onClaim(member)
+                onRedeem()
               }}
             >
-              <em aria-hidden>{member.emoji}</em>
-              {member.name}
+              Indløs
             </button>
-          ))}
+          ) : (
+            <span>Klar! En voksen kan indløse den.</span>
+          )}
         </div>
       ) : (
-        <>
-          <div className="tg-goal-bar">
-            <i
-              style={{ width: `${Math.min(1, best / treasure.cost) * 100}%` }}
-            />
-          </div>
-          <div className="tg-done-row">
-            <span>
-              {richest
-                ? `${richest.name} mangler ${count.format(treasure.cost - best)}`
-                : "Ingen har dubloner endnu"}
-            </span>
-            <span className="tg-num">
-              {count.format(best)}/{count.format(treasure.cost)}
-            </span>
-          </div>
-        </>
+        <div
+          className="tg-goal-bar"
+          role="img"
+          aria-label={`${count.format(Math.max(0, balance))} af ${count.format(treasure.cost)} dubloner`}
+        >
+          <i
+            style={{
+              width: `${Math.min(1, Math.max(0, balance) / treasure.cost) * 100}%`,
+            }}
+          />
+        </div>
       )}
     </article>
   )

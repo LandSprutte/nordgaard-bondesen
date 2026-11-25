@@ -61,11 +61,19 @@ function TogtApp() {
           </span>
           Skatte
         </Link>
-        <Link to="/togt/log">
+        {viewer.isParent && (
+          <Link to="/togt/log">
+            <span aria-hidden className="tg-ni">
+              📜
+            </span>
+            Logbog
+          </Link>
+        )}
+        <Link to="/togt/profil">
           <span aria-hidden className="tg-ni">
-            📜
+            {viewer.member.emoji}
           </span>
-          Logbog
+          Profil
         </Link>
         {viewer.isParent && (
           <Link to="/chores/plan" search={{ week: "next" }}>

@@ -3,7 +3,7 @@ import { z } from "zod"
 import { prisma } from "@workspace/db"
 
 import { dateOf, toLocalDate, today } from "@/lib/chores"
-import { requireFamily } from "@/server/session"
+import { requireFamily, requireParent } from "@/server/session"
 import { settleWeeks } from "@/server/settle-weeks"
 
 const memberSelect = {
@@ -14,31 +14,22 @@ const memberSelect = {
   archived: true,
 } as const
 
-/** Everyone in the crew with what's in their purse. */
-export const getPurses = createServerFn({ method: "GET" }).handler(async () => {
+/** What's in the family's shared chest. */
+export const getChest = createServerFn({ method: "GET" }).handler(async () => {
   const { familyId } = await requireFamily()
   await settleWeeks(familyId, today())
-  const [members, sums] = await Promise.all([
-    prisma.member.findMany({
-      where: { familyId, archived: false },
-      select: memberSelect,
-      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-    }),
-    prisma.doubloonEntry.groupBy({
-      by: ["memberId"],
-      where: { familyId },
-      _sum: { amount: true },
-    }),
-  ])
-  const balance = new Map(sums.map((s) => [s.memberId, s._sum.amount ?? 0]))
-  return members.map((m) => ({ ...m, balance: balance.get(m.id) ?? 0 }))
+  const chest = await prisma.doubloonEntry.aggregate({
+    where: { familyId },
+    _sum: { amount: true },
+  })
+  return { balance: chest._sum.amount ?? 0 }
 })
 
 const PAGE = 100
 
 /**
- * The ship's log: every doubloon earned, lost and spent, newest first,
- * plus each member's totals.
+ * The ship's log, for parents: every doubloon earned, lost and spent, newest first,
+ * plus the chest's totals and what each member has added to it.
  */
 export const getLog = createServerFn({ method: "GET" })
   .validator(
@@ -48,7 +39,7 @@ export const getLog = createServerFn({ method: "GET" })
     })
   )
   .handler(async ({ data }) => {
-    const { familyId } = await requireFamily()
+    const { familyId } = await requireParent()
     await settleWeeks(familyId, today())
     const where = data.memberId
       ? { familyId, memberId: data.memberId }
@@ -81,9 +72,12 @@ export const getLog = createServerFn({ method: "GET" })
         _count: true,
       }),
     ])
-    const sum = (memberId: string, kind: string) =>
-      totals.find((t) => t.memberId === memberId && t.kind === kind)?._sum
-        .amount ?? 0
+    const sum = (kind: string, memberId?: string) =>
+      totals
+        .filter(
+          (t) => t.kind === kind && (!memberId || t.memberId === memberId)
+        )
+        .reduce((acc, t) => acc + (t._sum.amount ?? 0), 0)
     return {
       entries: entries.map(({ createdAt, weekChore, ...entry }) => ({
         ...entry,
@@ -96,13 +90,19 @@ export const getLog = createServerFn({ method: "GET" })
         week: weekChore ? dateOf(weekChore.week) : null,
       })),
       hasMore: total > entries.length,
+      chest: {
+        earned: sum("reward"),
+        lost: -sum("penalty"),
+        spent: -sum("purchase"),
+      },
       crew: members
         .filter((m) => !m.archived || totals.some((t) => t.memberId === m.id))
         .map((m) => ({
           ...m,
-          earned: sum(m.id, "reward"),
-          lost: -sum(m.id, "penalty"),
-          spent: -sum(m.id, "purchase"),
+          earned: sum("reward", m.id),
+          chores: totals
+            .filter((t) => t.kind === "reward" && t.memberId === m.id)
+            .reduce((n, t) => n + t._count, 0),
         })),
     }
   })

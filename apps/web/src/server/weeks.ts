@@ -86,8 +86,9 @@ function takeBackReward(tx: Prisma.TransactionClient, weekChoreId: string) {
 }
 
 /**
- * A week's chores in order, plus the crew: everyone's purse and what they
- * earned that week. Defaults to this week.
+ * A week's chores in order, the crew with their experience and what they
+ * earned that week, the family's shared chest and the next treasure it is
+ * saving up for. Defaults to this week.
  */
 export const getWeek = createServerFn({ method: "GET" })
   .validator(z.object({ week: weekInput.optional() }))
@@ -99,9 +100,8 @@ export const getWeek = createServerFn({ method: "GET" })
     const thisWeek = weekStart(on)
     const week = weekStart(data.week ?? on)
     const weekDate = toDbDate(week)
-    const lastWeekDate = toDbDate(addDays(week, -7))
 
-    const [chores, members, balances, earned, xp, finishes, recent, lastWeek] =
+    const [chores, members, chest, treasures, earned, xp, finishes, recent] =
       await Promise.all([
         prisma.weekChore.findMany({
           where: { familyId, week: weekDate },
@@ -113,10 +113,14 @@ export const getWeek = createServerFn({ method: "GET" })
           select: memberSelect,
           orderBy: [{ position: "asc" }, { createdAt: "asc" }],
         }),
-        prisma.doubloonEntry.groupBy({
-          by: ["memberId"],
+        prisma.doubloonEntry.aggregate({
           where: { familyId },
           _sum: { amount: true },
+        }),
+        prisma.treasure.findMany({
+          where: { familyId },
+          select: { id: true, title: true, cost: true },
+          orderBy: [{ cost: "asc" }, { title: "asc" }],
         }),
         prisma.doubloonEntry.groupBy({
           by: ["memberId"],
@@ -150,19 +154,9 @@ export const getWeek = createServerFn({ method: "GET" })
             member: { select: memberSelect },
           },
         }),
-        prisma.weekChore.findMany({
-          where: { familyId, week: lastWeekDate, doneById: null },
-          select: {
-            title: true,
-            entries: {
-              where: { kind: "penalty" },
-              select: { amount: true, memberId: true },
-            },
-          },
-        }),
       ])
 
-    const balanceOf = new Map(balances.map((b) => [b.memberId, b._sum.amount]))
+    const balance = chest._sum.amount ?? 0
     const earnedOf = new Map(earned.map((b) => [b.memberId, b._sum.amount]))
     const xpOf = new Map(xp.map((b) => [b.memberId, b._sum.amount]))
     const doneDates = new Set(
@@ -181,18 +175,9 @@ export const getWeek = createServerFn({ method: "GET" })
       )
       .map((m) => ({
         ...m,
-        balance: balanceOf.get(m.id) ?? 0,
         earned: earnedOf.get(m.id) ?? 0,
         xp: xpOf.get(m.id) ?? 0,
       }))
-
-    const lostLastWeek = new Map<string, number>()
-    for (const entry of lastWeek.flatMap((c) => c.entries)) {
-      lostLastWeek.set(
-        entry.memberId,
-        (lostLastWeek.get(entry.memberId) ?? 0) - entry.amount
-      )
-    }
 
     return {
       /** Who is playing on this device. */
@@ -203,24 +188,19 @@ export const getWeek = createServerFn({ method: "GET" })
       editable: week >= thisWeek,
       chores: presented,
       crew,
+      chest: {
+        balance,
+        /** The cheapest treasure the chest can't afford yet, or else the dearest. */
+        goal:
+          treasures.find((t) => t.cost > balance) ?? treasures.at(-1) ?? null,
+        /** How many treasures the family could redeem right now. */
+        ready: treasures.filter((t) => t.cost <= balance).length,
+      },
       streakBeforeToday,
       recent: recent.map(({ createdAt, ...entry }) => ({
         ...entry,
         date: toLocalDate(createdAt),
       })),
-      /** Chores left undone last week (only once it's over) and what it cost. */
-      lastWeek:
-        addDays(week, -7) < thisWeek && week <= thisWeek
-          ? {
-              undone: lastWeek.map((c) => c.title),
-              lost: crew
-                .map((m) => ({
-                  member: m,
-                  amount: lostLastWeek.get(m.id) ?? 0,
-                }))
-                .filter((l) => l.amount > 0),
-            }
-          : null,
     }
   })
 
@@ -471,6 +451,13 @@ export const completeWeekChore = createServerFn({ method: "POST" })
         where: { id: data.memberId, familyId: viewer.familyId },
       })
       if (member.archived) throw new Error(`${member.name} er gået i land.`)
+      // Children tick every step first; parents can finish a chore outright.
+      if (!viewer.isParent) {
+        const left = await tx.weekChoreItem.count({
+          where: { weekChoreId: chore.id, done: false },
+        })
+        if (left > 0) throw new Error("Sæt flueben ved alle trin først.")
+      }
       await tx.weekChoreItem.updateMany({
         where: { weekChoreId: chore.id },
         data: { done: true },
